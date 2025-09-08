@@ -1,7 +1,7 @@
 <?php
 
 /*
- * WP_CLI: Copied and adapted from vendor/composer/composer/tests/Composer/Test/Json/JsonManipulatorTest.php. Additions at end marked WP_CLI: begin/end.
+ * FP_CLI: Copied and adapted from vendor/composer/composer/tests/Composer/Test/Json/JsonManipulatorTest.php. Additions at end marked FP_CLI: begin/end.
  *
  * (c) Nils Adermann <naderman@naderman.de>
  *     Jordi Boggiano <j.boggiano@seld.be>
@@ -10,8 +10,8 @@
  * file that was distributed with this source code.
  */
 
-use WP_CLI\JsonManipulator; // WP_CLI
-use WP_CLI\Tests\TestCase;
+use FP_CLI\JsonManipulator; // FP_CLI
+use FP_CLI\Tests\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class JsonManipulatorTest extends TestCase
@@ -2358,7 +2358,7 @@ class JsonManipulatorTest extends TestCase
 
     }
 
-	// WP_CLI: begin caseInsensitive.
+	// FP_CLI: begin caseInsensitive.
 
     /**
      * @dataProvider providerAddLinkCaseInsensitive
@@ -2574,6 +2574,6 @@ class JsonManipulatorTest extends TestCase
             ),
 		);
 	}
-	// WP_CLI: end caseInsensitive.
+	// FP_CLI: end caseInsensitive.
 
 }

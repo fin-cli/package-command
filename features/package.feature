@@ -1,44 +1,44 @@
-Feature: Manage WP-CLI packages
+Feature: Manage FP-CLI packages
 
   Scenario: Package CRUD
     Given an empty directory
 
-    When I run `wp package browse`
+    When I run `fp package browse`
     Then STDOUT should contain:
       """
       runcommand/hook
       """
 
-    When I run `wp package install runcommand/hook`
+    When I run `fp package install runcommand/hook`
     Then STDERR should be empty
 
-    When I run `wp help hook`
+    When I run `fp help hook`
     Then STDERR should be empty
     And STDOUT should contain:
       """
       List callbacks registered to a given action or filter.
       """
 
-    When I try `wp --skip-packages --debug help hook`
+    When I try `fp --skip-packages --debug help hook`
     Then STDERR should contain:
       """
       Debug (bootstrap): Skipped loading packages.
       """
     And STDERR should contain:
       """
-      Warning: No WordPress install
+      Warning: No FinPress install
       """
 
-    When I run `wp package list`
+    When I run `fp package list`
     Then STDOUT should contain:
       """
       runcommand/hook
       """
 
-    When I run `wp package uninstall runcommand/hook`
+    When I run `fp package uninstall runcommand/hook`
     Then STDERR should be empty
 
-    When I run `wp package list`
+    When I run `fp package list`
     Then STDOUT should not contain:
       """
       runcommand/hook
@@ -49,35 +49,35 @@ Feature: Manage WP-CLI packages
     And a bad-command.php file:
       """
       <?php
-      WP_CLI::error( "Doing it wrong." );
+      FP_CLI::error( "Doing it wrong." );
       """
 
-    When I try `wp --require=bad-command.php option`
+    When I try `fp --require=bad-command.php option`
     Then STDERR should contain:
       """
       Error: Doing it wrong.
       """
 
-    When I run `wp --require=bad-command.php package list`
+    When I run `fp --require=bad-command.php package list`
     Then STDERR should be empty
 
   @require-php-7.2 @broken
-  Scenario: Revert the WP-CLI packages composer.json when fail to install/uninstall a package due to memory limit
+  Scenario: Revert the FP-CLI packages composer.json when fail to install/uninstall a package due to memory limit
     Given an empty directory
-    When I try `{INVOKE_WP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package install runcommand/hook`
+    When I try `{INVOKE_FP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package install runcommand/hook`
     Then the return code should not be 0
     And STDERR should contain:
       """
       Reverted composer.json.
       """
 
-    When I run `wp package install runcommand/hook`
+    When I run `fp package install runcommand/hook`
     Then STDOUT should contain:
       """
       Success: Package installed.
       """
 
-    When I try `{INVOKE_WP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package uninstall runcommand/hook`
+    When I try `{INVOKE_FP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package uninstall runcommand/hook`
     Then the return code should not be 0
     And STDERR should contain:
       """
@@ -85,11 +85,11 @@ Feature: Manage WP-CLI packages
       """
 
     # Create a default composer.json first to compare.
-    When I run `WP_CLI_PACKAGES_DIR={RUN_DIR}/mypackages wp package list`
+    When I run `FP_CLI_PACKAGES_DIR={RUN_DIR}/mypackages fp package list`
     Then the {RUN_DIR}/mypackages/composer.json file should exist
     And save the {RUN_DIR}/mypackages/composer.json file as {MYPACKAGES_COMPOSER_JSON}
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/mypackages {INVOKE_WP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package install runcommand/hook`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/mypackages {INVOKE_FP_CLI_WITH_PHP_ARGS--dmemory_limit=10M -ddisable_functions=ini_set} package install runcommand/hook`
     Then the return code should not be 0
     And STDERR should contain:
       """
@@ -101,16 +101,16 @@ Feature: Manage WP-CLI packages
       """
 
   @github-api
-  Scenario: Try to run with a bad WP_CLI_PACKAGES_DIR/composer.json
+  Scenario: Try to run with a bad FP_CLI_PACKAGES_DIR/composer.json
     Given an empty directory
     And a packages-bad-json/composer.json file:
       """
       {
-        "name": "wp-cli/wp-cli",
+        "name": "fp-cli/fp-cli",
       }
       """
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json wp package list`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json fp package list`
     Then the return code should be 1
     And STDERR should contain:
       """
@@ -122,7 +122,7 @@ Feature: Manage WP-CLI packages
       """
     And STDOUT should be empty
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json wp package install runcommand/hook`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json fp package install runcommand/hook`
     Then the return code should be 1
     And STDERR should contain:
       """
@@ -137,7 +137,7 @@ Feature: Manage WP-CLI packages
       Installing
       """
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json wp package update`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/packages-bad-json fp package update`
     Then the return code should be 1
     And STDERR should contain:
       """
@@ -152,7 +152,7 @@ Feature: Manage WP-CLI packages
     Given a packages-no-such-package/composer.json file:
       """
       {
-        "name": "wp-cli/wp-cli",
+        "name": "fp-cli/fp-cli",
         "repositories": {
           "no-such-gituser/no-such-package": {
              "type": "vcs",
@@ -166,7 +166,7 @@ Feature: Manage WP-CLI packages
       """
     And save the {RUN_DIR}/packages-no-such-package/composer.json file as {NO_SUCH_PACKAGE_COMPOSER_JSON}
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/packages-no-such-package wp package install runcommand/hook`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/packages-no-such-package fp package install runcommand/hook`
     Then the return code should be 1
     And STDERR should contain:
       """
@@ -189,7 +189,7 @@ Feature: Manage WP-CLI packages
       {NO_SUCH_PACKAGE_COMPOSER_JSON}
       """
 
-    When I try `WP_CLI_PACKAGES_DIR={RUN_DIR}/packages-no-such-package wp package update`
+    When I try `FP_CLI_PACKAGES_DIR={RUN_DIR}/packages-no-such-package fp package update`
     Then the return code should be 1
     And STDERR should contain:
       """

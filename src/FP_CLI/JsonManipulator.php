@@ -1,7 +1,7 @@
 <?php
 
 /*
- * WP_CLI: Copied and adapted from vendor/composer/composer/src/Composer/Json/JsonManipulator.php. Changes marked `WP_CLI`.
+ * FP_CLI: Copied and adapted from vendor/composer/composer/src/Composer/Json/JsonManipulator.php. Changes marked `FP_CLI`.
  *
  * This file is part of Composer.
  *
@@ -12,9 +12,9 @@
  * file that was distributed with this source code.
  */
 
-namespace WP_CLI; // WP_CLI
+namespace FP_CLI; // FP_CLI
 
-use Composer\Json\JsonFile; // WP_CLI
+use Composer\Json\JsonFile; // FP_CLI
 use Composer\Repository\PlatformRepository;
 
 /**
@@ -55,7 +55,7 @@ class JsonManipulator
         return $this->contents . $this->newline;
     }
 
-    public function addLink($type, $package, $constraint, $sortPackages = false, $caseInsensitive = false) // WP_CLI: caseInsensitive.
+    public function addLink($type, $package, $constraint, $sortPackages = false, $caseInsensitive = false) // FP_CLI: caseInsensitive.
     {
         $decoded = JsonFile::parseJson($this->contents);
 
@@ -70,13 +70,13 @@ class JsonManipulator
             return false;
         }
 
-		// WP_CLI: begin caseInsensitive.
+		// FP_CLI: begin caseInsensitive.
 		if ($caseInsensitive) {
 			// Just zap any existing packages first in a case insensitive manner.
 			$this->removeSubNode($type, $package, $caseInsensitive);
 			return $this->addLink($type, $package, $constraint, $sortPackages);
 		}
-		// WP_CLI: end caseInsensitive.
+		// FP_CLI: end caseInsensitive.
 
         $links = $matches['value'];
 
@@ -194,7 +194,7 @@ class JsonManipulator
         return $this->removeMainKey($name);
     }
 
-    public function addSubNode($mainNode, $name, $value, $caseInsensitive = false) // WP_CLI: caseInsensitive.
+    public function addSubNode($mainNode, $name, $value, $caseInsensitive = false) // FP_CLI: caseInsensitive.
     {
         $decoded = JsonFile::parseJson($this->contents);
 
@@ -229,13 +229,13 @@ class JsonManipulator
             throw $e;
         }
 
-		// WP_CLI: begin caseInsensitive.
+		// FP_CLI: begin caseInsensitive.
 		if ($caseInsensitive) {
 			// Just zap any existing names first in a case insensitive manner.
 			$this->removeSubNode($mainNode, $name, $caseInsensitive);
 			return $this->addSubNode($mainNode, $name, $value);
 		}
-		// WP_CLI: end caseInsensitive.
+		// FP_CLI: end caseInsensitive.
 
         $children = $match['content'];
         // invalid match due to un-regexable content, abort
@@ -296,7 +296,7 @@ class JsonManipulator
         return true;
     }
 
-    public function removeSubNode($mainNode, $name, $caseInsensitive = false) // WP_CLI: caseInsensitive.
+    public function removeSubNode($mainNode, $name, $caseInsensitive = false) // FP_CLI: caseInsensitive.
     {
         $decoded = JsonFile::parseJson($this->contents);
 
@@ -305,7 +305,7 @@ class JsonManipulator
             return true;
         }
 
-		// WP_CLI: begin caseInsensitive.
+		// FP_CLI: begin caseInsensitive.
 		if ( $caseInsensitive ) {
 			// This is more or less a copy of the code at the start of `addLink()` above.
 			$regex = '{'.self::$DEFINES.'^(?P<start>\s*\{\s*(?:(?&string)\s*:\s*(?&json)\s*,\s*)*?)'.
@@ -328,7 +328,7 @@ class JsonManipulator
 
 			return true;
 		}
-		// WP_CLI: end caseInsensitive.
+		// FP_CLI: end caseInsensitive.
 
         // no node content match-able
         $nodeRegex = '{'.self::$DEFINES.'^(?P<start> \s* \{ \s* (?: (?&string) \s* : (?&json) \s* , \s* )*?'.
@@ -371,9 +371,9 @@ class JsonManipulator
                         $bestMatch = $match;
                     }
                 }
-                $childrenClean = preg_replace('{,\s*'.preg_quote($bestMatch).'}', '', $children, -1, $count); // WP_CLI: As the preg_match_all() above is case-sensitive, so should this be.
+                $childrenClean = preg_replace('{,\s*'.preg_quote($bestMatch).'}', '', $children, -1, $count); // FP_CLI: As the preg_match_all() above is case-sensitive, so should this be.
                 if (1 !== $count) {
-                    $childrenClean = preg_replace('{'.preg_quote($bestMatch).'\s*,?\s*}', '', $childrenClean, -1, $count); // WP_CLI: ditto.
+                    $childrenClean = preg_replace('{'.preg_quote($bestMatch).'\s*,?\s*}', '', $childrenClean, -1, $count); // FP_CLI: ditto.
                     if (1 !== $count) {
                         return false;
                     }

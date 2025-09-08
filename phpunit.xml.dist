@@ -12,7 +12,7 @@
 		 convertDeprecationsToExceptions="true"
 		 colors="true"
 		 verbose="true">
-	<testsuite name="wp-cli/package-command tests">
+	<testsuite name="fp-cli/package-command tests">
 		<directory suffix="Test.php">tests</directory>
 	</testsuite>
 

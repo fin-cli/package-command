@@ -1,20 +1,20 @@
-Feature: Update WP-CLI packages
+Feature: Update FP-CLI packages
 
   Background:
-    When I run `wp package path`
+    When I run `fp package path`
     Then save STDOUT as {PACKAGE_PATH}
 
-  Scenario: Updating WP-CLI packages runs successfully
+  Scenario: Updating FP-CLI packages runs successfully
     Given an empty directory
 
-    When I run `wp package install danielbachhuber/wp-cli-reset-post-date-command`
+    When I run `fp package install danielbachhuber/fp-cli-reset-post-date-command`
     Then STDOUT should contain:
       """
       Success: Package installed.
       """
     And STDERR should be empty
 
-    When I run `wp package update`
+    When I run `fp package update`
     Then STDOUT should contain:
       """
       Using Composer to update packages...
@@ -28,10 +28,10 @@ Feature: Update WP-CLI packages
   Scenario: Update a package with an update available
     Given an empty directory
 
-    When I run `wp package install wp-cli-test/updateable-package:v1.0.0`
+    When I run `fp package install fp-cli-test/updateable-package:v1.0.0`
     Then STDOUT should contain:
       """
-      Installing package wp-cli-test/updateable-package (v1.0.0)
+      Installing package fp-cli-test/updateable-package (v1.0.0)
       """
     And STDOUT should contain:
       """
@@ -41,26 +41,26 @@ Feature: Update WP-CLI packages
     When I run `cat {PACKAGE_PATH}/composer.json`
     Then STDOUT should contain:
       """
-      "wp-cli-test/updateable-package": "v1.0.0"
+      "fp-cli-test/updateable-package": "v1.0.0"
       """
 
-    When I run `wp help updateable-package v1`
+    When I run `fp help updateable-package v1`
     Then STDOUT should contain:
       """
-      wp updateable-package v1
+      fp updateable-package v1
       """
 
-    When I run `wp package update`
+    When I run `fp package update`
     Then STDOUT should match /Nothing to install(?: or update|, update or remove)/
     And STDOUT should contain:
       """
       Success: Packages updated.
       """
 
-    When I run `wp package list --fields=name,update`
+    When I run `fp package list --fields=name,update`
     Then STDOUT should be a table containing rows:
       | name                           | update    |
-      | wp-cli-test/updateable-package | available |
+      | fp-cli-test/updateable-package | available |
 
     When I run `sed -i.bak s/v1.0.0/\>=1.0.0/g {PACKAGE_PATH}/composer.json`
     Then the return code should be 0
@@ -68,15 +68,15 @@ Feature: Update WP-CLI packages
     When I run `cat {PACKAGE_PATH}/composer.json`
     Then STDOUT should contain:
       """
-      "wp-cli-test/updateable-package": ">=1.0.0"
+      "fp-cli-test/updateable-package": ">=1.0.0"
       """
 
-    When I run `wp package list --fields=name,update`
+    When I run `fp package list --fields=name,update`
     Then STDOUT should be a table containing rows:
       | name                           | update     |
-      | wp-cli-test/updateable-package | available  |
+      | fp-cli-test/updateable-package | available  |
 
-    When I run `wp package update`
+    When I run `fp package update`
     Then STDOUT should contain:
       """
       Writing lock file
@@ -87,12 +87,12 @@ Feature: Update WP-CLI packages
       """
     And STDOUT should not match /Nothing to install(?: or update|, update or remove)/
 
-    When I run `wp package list --fields=name,update`
+    When I run `fp package list --fields=name,update`
     Then STDOUT should be a table containing rows:
       | name                           | update  |
-      | wp-cli-test/updateable-package | none    |
+      | fp-cli-test/updateable-package | none    |
 
-    When I run `wp package update`
+    When I run `fp package update`
     Then STDOUT should match /Nothing to install(?: or update|, update or remove)/
     And STDOUT should contain:
       """

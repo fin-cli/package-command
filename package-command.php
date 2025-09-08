@@ -1,11 +1,11 @@
 <?php
 
-if ( ! class_exists( 'WP_CLI' ) ) {
+if ( ! class_exists( 'FP_CLI' ) ) {
 	return;
 }
 
-$wpcli_package_autoloader = __DIR__ . '/vendor/autoload.php';
-if ( file_exists( $wpcli_package_autoloader ) && ! class_exists( 'Package_Command' ) ) {
-	require_once $wpcli_package_autoloader;
+$fpcli_package_autoloader = __DIR__ . '/vendor/autoload.php';
+if ( file_exists( $fpcli_package_autoloader ) && ! class_exists( 'Package_Command' ) ) {
+	require_once $fpcli_package_autoloader;
 }
-WP_CLI::add_command( 'package', 'Package_Command' );
+FP_CLI::add_command( 'package', 'Package_Command' );

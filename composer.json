@@ -1,8 +1,8 @@
 {
-  "name": "wp-cli/package-command",
-  "type": "wp-cli-package",
-  "description": "Lists, installs, and removes WP-CLI packages.",
-  "homepage": "https://github.com/wp-cli/package-command",
+  "name": "fp-cli/package-command",
+  "type": "fp-cli-package",
+  "description": "Lists, installs, and removes FP-CLI packages.",
+  "homepage": "https://github.com/fp-cli/package-command",
   "license": "MIT",
   "authors": [
     {
@@ -14,18 +14,18 @@
   "require": {
     "ext-json": "*",
     "composer/composer": "^2.2.25",
-    "wp-cli/wp-cli": "^2.12"
+    "fp-cli/fp-cli": "^2.12"
   },
   "require-dev": {
-    "wp-cli/scaffold-command": "^1 || ^2",
-    "wp-cli/wp-cli-tests": "^5"
+    "fp-cli/scaffold-command": "^1 || ^2",
+    "fp-cli/fp-cli-tests": "^5"
   },
   "config": {
     "process-timeout": 7200,
     "sort-packages": true,
     "allow-plugins": {
       "dealerdirect/phpcodesniffer-composer-installer": true,
-      "johnpbloch/wordpress-core-installer": true,
+      "johnpbloch/finpress-core-installer": true,
       "phpstan/extension-installer": true
     },
     "lock": false
@@ -72,6 +72,6 @@
     ]
   },
   "support": {
-    "issues": "https://github.com/wp-cli/package-command/issues"
+    "issues": "https://github.com/fp-cli/package-command/issues"
   }
 }

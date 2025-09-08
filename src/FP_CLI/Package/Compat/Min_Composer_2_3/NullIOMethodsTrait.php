@@ -1,8 +1,8 @@
 <?php
 
-namespace WP_CLI\Package\Compat\Min_Composer_2_3;
+namespace FP_CLI\Package\Compat\Min_Composer_2_3;
 
-use WP_CLI;
+use FP_CLI;
 
 trait NullIOMethodsTrait {
 	/**
@@ -29,8 +29,8 @@ trait NullIOMethodsTrait {
 	private static function output_clean_message( $messages ) {
 		$messages = (array) preg_replace( '#<(https?)([^>]+)>#', '$1$2', $messages );
 		foreach ( $messages as $message ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
-			WP_CLI::log( strip_tags( trim( $message ) ) );
+			// phpcs:ignore FinPress.FP.AlternativeFunctions.strip_tags_strip_tags
+			FP_CLI::log( strip_tags( trim( $message ) ) );
 		}
 	}
 }

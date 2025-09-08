@@ -15,36 +15,36 @@ use Composer\Repository;
 use Composer\Repository\CompositeRepository;
 use Composer\Repository\ComposerRepository;
 use Composer\Util\HttpDownloader;
-use WP_CLI\Package\ComposerIO;
-use WP_CLI\Extractor;
-use WP_CLI\Utils;
-use WP_CLI\JsonManipulator;
-use WP_CLI\PackageManagerEventSubscriber;
-use WP_CLI\RequestsLibrary;
+use FP_CLI\Package\ComposerIO;
+use FP_CLI\Extractor;
+use FP_CLI\Utils;
+use FP_CLI\JsonManipulator;
+use FP_CLI\PackageManagerEventSubscriber;
+use FP_CLI\RequestsLibrary;
 
 /**
- * Lists, installs, and removes WP-CLI packages.
+ * Lists, installs, and removes FP-CLI packages.
  *
- * WP-CLI packages are community-maintained projects built on WP-CLI. They can
- * contain WP-CLI commands, but they can also just extend WP-CLI in some way.
+ * FP-CLI packages are community-maintained projects built on FP-CLI. They can
+ * contain FP-CLI commands, but they can also just extend FP-CLI in some way.
  *
  * Learn how to create your own command from the
- * [Commands Cookbook](https://make.wordpress.org/cli/handbook/guides/commands-cookbook/)
+ * [Commands Cookbook](https://make.finpress.org/cli/handbook/guides/commands-cookbook/)
  *
  * ## EXAMPLES
  *
  *     # List installed packages.
- *     $ wp package list
+ *     $ fp package list
  *     +-----------------------+------------------+----------+-----------+----------------+
  *     | name                  | authors          | version  | update    | update_version |
  *     +-----------------------+------------------+----------+-----------+----------------+
- *     | wp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
+ *     | fp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
  *     +-----------------------+------------------+----------+-----------+----------------+
  *
  *     # Install the latest development version of the package.
- *     $ wp package install wp-cli/server-command
- *     Installing package wp-cli/server-command (dev-main)
- *     Updating /home/person/.wp-cli/packages/composer.json to require the package...
+ *     $ fp package install fp-cli/server-command
+ *     Installing package fp-cli/server-command (dev-main)
+ *     Updating /home/person/.fp-cli/packages/composer.json to require the package...
  *     Using Composer to install the package...
  *     ---
  *     Loading composer repositories with package information
@@ -60,36 +60,36 @@ use WP_CLI\RequestsLibrary;
  *     Success: Package installed.
  *
  *     # Uninstall package.
- *     $ wp package uninstall wp-cli/server-command
- *     Removing require statement for package 'wp-cli/server-command' from /home/person/.wp-cli/packages/composer.json
- *     Removing repository details from /home/person/.wp-cli/packages/composer.json
+ *     $ fp package uninstall fp-cli/server-command
+ *     Removing require statement for package 'fp-cli/server-command' from /home/person/.fp-cli/packages/composer.json
+ *     Removing repository details from /home/person/.fp-cli/packages/composer.json
  *     Removing package directories and regenerating autoloader...
  *     Success: Uninstalled package.
  *
- * @package WP-CLI
+ * @package FP-CLI
  *
- * @when before_wp_load
+ * @when before_fp_load
  */
-class Package_Command extends WP_CLI_Command {
+class Package_Command extends FP_CLI_Command {
 
-	const PACKAGE_INDEX_URL = 'https://wp-cli.org/package-index/';
+	const PACKAGE_INDEX_URL = 'https://fp-cli.org/package-index/';
 
 	const DEFAULT_DEV_BRANCH_CONSTRAINTS = 'dev-main || dev-master || dev-trunk';
 
 	private $version_selector = false;
 
 	/**
-	 * Default author data used while creating default WP-CLI packages composer.json.
+	 * Default author data used while creating default FP-CLI packages composer.json.
 	 *
 	 * @var array
 	 */
 	private $author_data = [
-		'name'  => 'WP-CLI',
-		'email' => 'noreply@wpcli.org',
+		'name'  => 'FP-CLI',
+		'email' => 'noreply@fpcli.org',
 	];
 
 	/**
-	 * Default repository data used while creating default WP-CLI packages composer.json.
+	 * Default repository data used while creating default FP-CLI packages composer.json.
 	 * @var array
 	 */
 	private $composer_type_package = [
@@ -98,11 +98,11 @@ class Package_Command extends WP_CLI_Command {
 	];
 
 	/**
-	 * Browses WP-CLI packages available for installation.
+	 * Browses FP-CLI packages available for installation.
 	 *
-	 * Lists packages available for installation from the [Package Index](http://wp-cli.org/package-index/).
+	 * Lists packages available for installation from the [Package Index](http://fp-cli.org/package-index/).
 	 * Although the package index will remain in place for backward compatibility reasons, it has been
-	 * deprecated and will not be updated further. Please refer to https://github.com/wp-cli/ideas/issues/51
+	 * deprecated and will not be updated further. Please refer to https://github.com/fp-cli/ideas/issues/51
 	 * to read about its potential replacement.
 	 *
 	 * ## OPTIONS
@@ -135,52 +135,52 @@ class Package_Command extends WP_CLI_Command {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     $ wp package browse --format=yaml
+	 *     $ fp package browse --format=yaml
 	 *     ---
 	 *     10up/mu-migration:
 	 *       name: 10up/mu-migration
-	 *       description: A set of WP-CLI commands to support the migration of single WordPress instances to multisite
+	 *       description: A set of FP-CLI commands to support the migration of single FinPress instances to multisite
 	 *       authors: Nícholas André
 	 *       version: dev-main, dev-develop
-	 *     aaemnnosttv/wp-cli-dotenv-command:
-	 *       name: aaemnnosttv/wp-cli-dotenv-command
-	 *       description: Dotenv commands for WP-CLI
+	 *     aaemnnosttv/fp-cli-dotenv-command:
+	 *       name: aaemnnosttv/fp-cli-dotenv-command
+	 *       description: Dotenv commands for FP-CLI
 	 *       authors: Evan Mattson
 	 *       version: v0.1, v0.1-beta.1, v0.2, dev-main, dev-dev, dev-develop, dev-tests/behat
-	 *     aaemnnosttv/wp-cli-http-command:
-	 *       name: aaemnnosttv/wp-cli-http-command
-	 *       description: WP-CLI command for using the WordPress HTTP API
+	 *     aaemnnosttv/fp-cli-http-command:
+	 *       name: aaemnnosttv/fp-cli-http-command
+	 *       description: FP-CLI command for using the FinPress HTTP API
 	 *       authors: Evan Mattson
 	 *       version: dev-main
 	 */
 	public function browse( $_, $assoc_args ) {
 		$this->set_composer_auth_env_var();
 		if ( empty( $assoc_args['format'] ) || 'table' === $assoc_args['format'] ) {
-			WP_CLI::line( WP_CLI::colorize( '%CAlthough the package index will remain in place for backward compatibility reasons, it has been deprecated and will not be updated further. Please refer to https://github.com/wp-cli/ideas/issues/51 to read about its potential replacement.%n' ) );
+			FP_CLI::line( FP_CLI::colorize( '%CAlthough the package index will remain in place for backward compatibility reasons, it has been deprecated and will not be updated further. Please refer to https://github.com/fp-cli/ideas/issues/51 to read about its potential replacement.%n' ) );
 		}
 		$this->show_packages( 'browse', $this->get_community_packages(), $assoc_args );
 	}
 
 	/**
-	 * Installs a WP-CLI package.
+	 * Installs a FP-CLI package.
 	 *
 	 * Packages are required to be a valid Composer package, and can be
 	 * specified as:
 	 *
-	 * * Package name from WP-CLI's package index.
+	 * * Package name from FP-CLI's package index.
 	 * * Git URL accessible by the current shell user.
 	 * * Path to a directory on the local machine.
 	 * * Local or remote .zip file.
 	 *
-	 * Packages are installed to `~/.wp-cli/packages/` by default. Use the
-	 * `WP_CLI_PACKAGES_DIR` environment variable to provide a custom path.
+	 * Packages are installed to `~/.fp-cli/packages/` by default. Use the
+	 * `FP_CLI_PACKAGES_DIR` environment variable to provide a custom path.
 	 *
-	 * When installing a local directory, WP-CLI simply registers a
-	 * reference to the directory. If you move or delete the directory, WP-CLI's
+	 * When installing a local directory, FP-CLI simply registers a
+	 * reference to the directory. If you move or delete the directory, FP-CLI's
 	 * reference breaks.
 	 *
-	 * When installing a .zip file, WP-CLI extracts the package to
-	 * `~/.wp-cli/packages/local/<package-name>`.
+	 * When installing a .zip file, FP-CLI extracts the package to
+	 * `~/.fp-cli/packages/local/<package-name>`.
 	 *
 	 * If Github token authorization is required, a GitHub Personal Access Token
 	 * (https://github.com/settings/tokens) can be used. The following command
@@ -194,7 +194,7 @@ class Package_Command extends WP_CLI_Command {
 	 * <name|git|path|zip>
 	 * : Name, git URL, directory path, or .zip file for the package to install.
 	 * Names can optionally include a version constraint
-	 * (e.g. wp-cli/server-command:@stable).
+	 * (e.g. fp-cli/server-command:@stable).
 	 *
 	 * [--insecure]
 	 * : Retry downloads without certificate validation if TLS handshake fails. Note: This makes the request vulnerable to a MITM attack.
@@ -202,16 +202,16 @@ class Package_Command extends WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Install a package hosted at a git URL.
-	 *     $ wp package install runcommand/hook
+	 *     $ fp package install runcommand/hook
 	 *
 	 *     # Install the latest stable version.
-	 *     $ wp package install wp-cli/server-command:@stable
+	 *     $ fp package install fp-cli/server-command:@stable
 	 *
 	 *     # Install a package hosted at a GitLab.com URL.
-	 *     $ wp package install https://gitlab.com/foo/wp-cli-bar-command.git
+	 *     $ fp package install https://gitlab.com/foo/fp-cli-bar-command.git
 	 *
 	 *     # Install a package in a .zip file.
-	 *     $ wp package install google-sitemap-generator-cli.zip
+	 *     $ fp package install google-sitemap-generator-cli.zip
 	 */
 	public function install( $args, $assoc_args ) {
 		list( $package_name ) = $args;
@@ -231,14 +231,14 @@ class Package_Command extends WP_CLI_Command {
 			if ( preg_match( '#([^:\/]+\/[^\/]+)\.git#', $package_name, $matches ) ) {
 				$package_name = $this->check_git_package_name( $matches[1], $package_name, $version, $insecure );
 			} else {
-				WP_CLI::error( "Couldn't parse package name from expected path '<name>/<package>'." );
+				FP_CLI::error( "Couldn't parse package name from expected path '<name>/<package>'." );
 			}
 		} elseif ( ( false !== strpos( $package_name, '://' ) && false !== stripos( $package_name, '.zip' ) )
 			|| ( pathinfo( $package_name, PATHINFO_EXTENSION ) === 'zip' && is_file( $package_name ) ) ) {
 			// Download the remote ZIP file to a temp directory
 			$temp = false;
 			if ( false !== strpos( $package_name, '://' ) ) {
-				$temp         = Utils\get_temp_dir() . uniqid( 'wp-cli-package_', true /*more_entropy*/ ) . '.zip';
+				$temp         = Utils\get_temp_dir() . uniqid( 'fp-cli-package_', true /*more_entropy*/ ) . '.zip';
 				$options      = [
 					'timeout'  => 600,
 					'filename' => $temp,
@@ -249,11 +249,11 @@ class Package_Command extends WP_CLI_Command {
 				$response     = Utils\http_request( 'GET', $package_name, null, $headers, $options );
 				if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
 					@unlink( $temp ); // @codingStandardsIgnoreLine
-					WP_CLI::error( sprintf( "Couldn't download package from '%s' (HTTP code %d).", $package_name, $response->status_code ) );
+					FP_CLI::error( sprintf( "Couldn't download package from '%s' (HTTP code %d).", $package_name, $response->status_code ) );
 				}
 				$package_name = $temp;
 			}
-			$dir_package = Utils\get_temp_dir() . uniqid( 'wp-cli-package_', true /*more_entropy*/ );
+			$dir_package = Utils\get_temp_dir() . uniqid( 'fp-cli-package_', true /*more_entropy*/ );
 			try {
 				// Extract the package to get the package name
 				Extractor::extract( $package_name, $dir_package );
@@ -263,7 +263,7 @@ class Package_Command extends WP_CLI_Command {
 				}
 				list( $package_name, $version ) = self::get_package_name_and_version_from_dir_package( $dir_package );
 				// Move to a location based on the package name
-				$local_dir          = rtrim( WP_CLI::get_runner()->get_packages_dir_path(), '/' ) . '/local/';
+				$local_dir          = rtrim( FP_CLI::get_runner()->get_packages_dir_path(), '/' ) . '/local/';
 				$actual_dir_package = $local_dir . str_replace( '/', '-', $package_name );
 				Extractor::copy_overwrite_files( $dir_package, $actual_dir_package );
 				Extractor::rmdir( $dir_package );
@@ -277,10 +277,10 @@ class Package_Command extends WP_CLI_Command {
 					try {
 						Extractor::rmdir( $dir_package );
 					} catch ( Exception $rmdir_e ) {
-						WP_CLI::warning( $rmdir_e->getMessage() );
+						FP_CLI::warning( $rmdir_e->getMessage() );
 					}
 				}
-				WP_CLI::error( $e->getMessage() );
+				FP_CLI::error( $e->getMessage() );
 			}
 		} elseif ( is_dir( $package_name ) && file_exists( $package_name . '/composer.json' ) ) {
 			$dir_package = $package_name;
@@ -294,7 +294,7 @@ class Package_Command extends WP_CLI_Command {
 			}
 			$package = $this->get_package_by_shortened_identifier( $package_name );
 			if ( ! $package ) {
-				WP_CLI::error( sprintf( "Invalid package: shortened identifier '%s' not found.", $package_name ) );
+				FP_CLI::error( sprintf( "Invalid package: shortened identifier '%s' not found.", $package_name ) );
 			}
 			if ( is_string( $package ) ) {
 				if ( $this->is_git_repository( $package ) ) {
@@ -326,9 +326,9 @@ class Package_Command extends WP_CLI_Command {
 			$version = self::DEFAULT_DEV_BRANCH_CONSTRAINTS;
 		}
 
-		WP_CLI::log( sprintf( 'Installing package %s (%s)', $package_name, $version ) );
+		FP_CLI::log( sprintf( 'Installing package %s (%s)', $package_name, $version ) );
 
-		// Read the WP-CLI packages composer.json and do some initial error checking.
+		// Read the FP-CLI packages composer.json and do some initial error checking.
 		list( $json_path, $composer_backup, $composer_backup_decoded ) = $this->get_composer_json_path_backup_decoded();
 
 		// Revert on shutdown if `$revert` is true (set to false on success).
@@ -336,16 +336,16 @@ class Package_Command extends WP_CLI_Command {
 		$this->register_revert_shutdown_function( $json_path, $composer_backup, $revert );
 
 		// Add the 'require' to composer.json
-		WP_CLI::log( sprintf( 'Updating %s to require the package...', $json_path ) );
+		FP_CLI::log( sprintf( 'Updating %s to require the package...', $json_path ) );
 		$json_manipulator = new JsonManipulator( $composer_backup );
-		$json_manipulator->addMainKey( 'name', 'wp-cli/wp-cli' );
-		$json_manipulator->addMainKey( 'version', self::get_wp_cli_version_composer() );
+		$json_manipulator->addMainKey( 'name', 'fp-cli/fp-cli' );
+		$json_manipulator->addMainKey( 'version', self::get_fp_cli_version_composer() );
 		$json_manipulator->addLink( 'require', $package_name, $version, false /*sortPackages*/, true /*caseInsensitive*/ );
 		$json_manipulator->addConfigSetting( 'secure-http', true );
 
 		$package_args = [];
 		if ( $git_package ) {
-			WP_CLI::log( sprintf( 'Registering %s as a VCS repository...', $git_package ) );
+			FP_CLI::log( sprintf( 'Registering %s as a VCS repository...', $git_package ) );
 			$package_args = [
 				'type' => 'vcs',
 				'url'  => $git_package,
@@ -357,7 +357,7 @@ class Package_Command extends WP_CLI_Command {
 				true /*caseInsensitive*/
 			);
 		} elseif ( $dir_package ) {
-			WP_CLI::log( sprintf( 'Registering %s as a path repository...', $dir_package ) );
+			FP_CLI::log( sprintf( 'Registering %s as a path repository...', $dir_package ) );
 			$package_args = [
 				'type' => 'path',
 				'url'  => $dir_package,
@@ -370,11 +370,11 @@ class Package_Command extends WP_CLI_Command {
 			);
 		}
 		// If the composer file does not contain the current package index repository, refresh the repository definition.
-		if ( empty( $composer_backup_decoded['repositories']['wp-cli']['url'] ) || self::PACKAGE_INDEX_URL !== $composer_backup_decoded['repositories']['wp-cli']['url'] ) {
-			WP_CLI::log( 'Updating package index repository url...' );
+		if ( empty( $composer_backup_decoded['repositories']['fp-cli']['url'] ) || self::PACKAGE_INDEX_URL !== $composer_backup_decoded['repositories']['fp-cli']['url'] ) {
+			FP_CLI::log( 'Updating package index repository url...' );
 			$package_args = $this->composer_type_package;
 			$json_manipulator->addRepository(
-				'wp-cli',
+				'fp-cli',
 				$package_args
 			);
 		}
@@ -391,31 +391,31 @@ class Package_Command extends WP_CLI_Command {
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
 
 		// Try running the installer, but revert composer.json if failed
-		WP_CLI::log( 'Using Composer to install the package...' );
-		WP_CLI::log( '---' );
+		FP_CLI::log( 'Using Composer to install the package...' );
+		FP_CLI::log( '---' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			WP_CLI::warning( $e->getMessage() );
+			FP_CLI::warning( $e->getMessage() );
 		}
 
 		// TODO: The --insecure flag should cause another Composer run with verify disabled.
 
-		WP_CLI::log( '---' );
+		FP_CLI::log( '---' );
 
 		if ( 0 === $res ) {
 			$revert = false;
-			WP_CLI::success( 'Package installed.' );
+			FP_CLI::success( 'Package installed.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			WP_CLI::debug( "composer.json content:\n" . file_get_contents( $json_path ), 'packages' );
-			WP_CLI::error( "Package installation failed{$res_msg}." );
+			FP_CLI::debug( "composer.json content:\n" . file_get_contents( $json_path ), 'packages' );
+			FP_CLI::error( "Package installation failed{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Lists installed WP-CLI packages.
+	 * Lists installed FP-CLI packages.
 	 *
 	 * ## OPTIONS
 	 *
@@ -451,11 +451,11 @@ class Package_Command extends WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # List installed packages.
-	 *     $ wp package list
+	 *     $ fp package list
 	 *     +-----------------------+------------------+----------+-----------+----------------+
 	 *     | name                  | authors          | version  | update    | update_version |
 	 *     +-----------------------+------------------+----------+-----------+----------------+
-	 *     | wp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
+	 *     | fp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
 	 *     +-----------------------+------------------+----------+-----------+----------------+
 	 *
 	 * @subcommand list
@@ -466,7 +466,7 @@ class Package_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Gets the path to an installed WP-CLI package, or the package directory.
+	 * Gets the path to an installed FP-CLI package, or the package directory.
 	 *
 	 * If you want to contribute to a package, this is a great way to jump to it.
 	 *
@@ -478,34 +478,34 @@ class Package_Command extends WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Get package path.
-	 *     $ wp package path
-	 *     /home/person/.wp-cli/packages/
+	 *     $ fp package path
+	 *     /home/person/.fp-cli/packages/
 	 *
 	 *     # Get path to an installed package.
-	 *     $ wp package path wp-cli/server-command
-	 *     /home/person/.wp-cli/packages/vendor/wp-cli/server-command
+	 *     $ fp package path fp-cli/server-command
+	 *     /home/person/.fp-cli/packages/vendor/fp-cli/server-command
 	 *
 	 *     # Change directory to package path.
-	 *     $ cd $(wp package path) && pwd
-	 *     /home/vagrant/.wp-cli/packages
+	 *     $ cd $(fp package path) && pwd
+	 *     /home/vagrant/.fp-cli/packages
 	 */
 	public function path( $args ) {
-		$packages_dir = WP_CLI::get_runner()->get_packages_dir_path();
+		$packages_dir = FP_CLI::get_runner()->get_packages_dir_path();
 		if ( ! empty( $args ) ) {
 			$packages_dir .= 'vendor/' . $args[0];
 			if ( ! is_dir( $packages_dir ) ) {
-				WP_CLI::error( 'Invalid package name.' );
+				FP_CLI::error( 'Invalid package name.' );
 			}
 		}
-		WP_CLI::line( $packages_dir );
+		FP_CLI::line( $packages_dir );
 	}
 
 	/**
-	 * Updates all installed WP-CLI packages to their latest version.
+	 * Updates all installed FP-CLI packages to their latest version.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     $ wp package update
+	 *     $ fp package update
 	 *     Using Composer to update packages...
 	 *     ---
 	 *     Loading composer repositories with package information
@@ -531,28 +531,28 @@ class Package_Command extends WP_CLI_Command {
 		$install = Installer::create( new ComposerIO(), $composer );
 		$install->setUpdate( true ); // Installer class will only override composer.lock with this flag
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
-		WP_CLI::log( 'Using Composer to update packages...' );
-		WP_CLI::log( '---' );
+		FP_CLI::log( 'Using Composer to update packages...' );
+		FP_CLI::log( '---' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			WP_CLI::warning( $e->getMessage() );
+			FP_CLI::warning( $e->getMessage() );
 		}
-		WP_CLI::log( '---' );
+		FP_CLI::log( '---' );
 
 		// TODO: The --insecure (to be added here) flag should cause another Composer run with verify disabled.
 
 		if ( 0 === $res ) {
-			WP_CLI::success( 'Packages updated.' );
+			FP_CLI::success( 'Packages updated.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			WP_CLI::error( "Failed to update packages{$res_msg}." );
+			FP_CLI::error( "Failed to update packages{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Uninstalls a WP-CLI package.
+	 * Uninstalls a FP-CLI package.
 	 *
 	 * ## OPTIONS
 	 *
@@ -565,9 +565,9 @@ class Package_Command extends WP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Uninstall package.
-	 *     $ wp package uninstall wp-cli/server-command
-	 *     Removing require statement for package 'wp-cli/server-command' from /home/person/.wp-cli/packages/composer.json
-	 *     Removing repository details from /home/person/.wp-cli/packages/composer.json
+	 *     $ fp package uninstall fp-cli/server-command
+	 *     Removing require statement for package 'fp-cli/server-command' from /home/person/.fp-cli/packages/composer.json
+	 *     Removing repository details from /home/person/.fp-cli/packages/composer.json
 	 *     Removing package directories and regenerating autoloader...
 	 *     Success: Uninstalled package.
 	 */
@@ -581,7 +581,7 @@ class Package_Command extends WP_CLI_Command {
 		if ( false === $package ) {
 			$package_name = $this->get_package_by_shortened_identifier( $package_name );
 			if ( false === $package_name ) {
-				WP_CLI::error( 'Package not installed.' );
+				FP_CLI::error( 'Package not installed.' );
 			}
 			$version = "dev-{$this->get_github_default_branch( $package_name, $insecure )}";
 			$matches = [];
@@ -592,7 +592,7 @@ class Package_Command extends WP_CLI_Command {
 			$package_name = $package->getPrettyName(); // Make sure package name is what's in composer.json.
 		}
 
-		// Read the WP-CLI packages composer.json and do some initial error checking.
+		// Read the FP-CLI packages composer.json and do some initial error checking.
 		list( $json_path, $composer_backup, $composer_backup_decoded ) = $this->get_composer_json_path_backup_decoded();
 
 		// Revert on shutdown if `$revert` is true (set to false on success).
@@ -600,12 +600,12 @@ class Package_Command extends WP_CLI_Command {
 		$this->register_revert_shutdown_function( $json_path, $composer_backup, $revert );
 
 		// Remove the 'require' from composer.json.
-		WP_CLI::log( sprintf( 'Removing require statement for package \'%s\' from %s', $package_name, $json_path ) );
+		FP_CLI::log( sprintf( 'Removing require statement for package \'%s\' from %s', $package_name, $json_path ) );
 		$manipulator = new JsonManipulator( $composer_backup );
 		$manipulator->removeSubNode( 'require', $package_name, true /*caseInsensitive*/ );
 
 		// Remove the 'repository' details from composer.json.
-		WP_CLI::log( sprintf( 'Removing repository details from %s', $json_path ) );
+		FP_CLI::log( sprintf( 'Removing repository details from %s', $json_path ) );
 		$manipulator->removeSubNode( 'repositories', $package_name, true /*caseInsensitive*/ );
 
 		file_put_contents( $json_path, $manipulator->getContents() );
@@ -616,25 +616,25 @@ class Package_Command extends WP_CLI_Command {
 		$install->setUpdate( true ); // Installer class will only override composer.lock with this flag
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
 
-		WP_CLI::log( 'Removing package directories and regenerating autoloader...' );
+		FP_CLI::log( 'Removing package directories and regenerating autoloader...' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			WP_CLI::warning( $e->getMessage() );
+			FP_CLI::warning( $e->getMessage() );
 		}
 
 		if ( 0 === $res ) {
 			$revert = false;
-			WP_CLI::success( 'Uninstalled package.' );
+			FP_CLI::success( 'Uninstalled package.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			WP_CLI::error( "Package removal failed{$res_msg}." );
+			FP_CLI::error( "Package removal failed{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Checks whether a package is a WP-CLI community package based
+	 * Checks whether a package is a FP-CLI community package based
 	 * on membership in our package index.
 	 *
 	 * @param object      $package     A package object
@@ -654,17 +654,17 @@ class Package_Command extends WP_CLI_Command {
 
 			// Composer's auto-load generating code makes some assumptions about where
 			// the 'vendor-dir' is, and where Composer is running from.
-			// Best to just pretend we're installing a package from ~/.wp-cli or similar
+			// Best to just pretend we're installing a package from ~/.fp-cli or similar
 			chdir( pathinfo( $composer_path, PATHINFO_DIRNAME ) );
 
 			// Prevent DateTime error/warning when no timezone set.
-			// Note: The package is loaded before WordPress load, For environments that don't have set time in php.ini.
-			// phpcs:ignore WordPress.DateTime.RestrictedFunctions.timezone_change_date_default_timezone_set,WordPress.PHP.NoSilencedErrors.Discouraged
+			// Note: The package is loaded before FinPress load, For environments that don't have set time in php.ini.
+			// phpcs:ignore FinPress.DateTime.RestrictedFunctions.timezone_change_date_default_timezone_set,FinPress.PHP.NoSilencedErrors.Discouraged
 			date_default_timezone_set( @date_default_timezone_get() );
 
 			$composer = Factory::create( new NullIO(), $composer_path );
 		} catch ( Exception $e ) {
-			WP_CLI::error( sprintf( 'Failed to get composer instance: %s', $e->getMessage() ) );
+			FP_CLI::error( sprintf( 'Failed to get composer instance: %s', $e->getMessage() ) );
 		}
 		return $composer;
 	}
@@ -682,7 +682,7 @@ class Package_Command extends WP_CLI_Command {
 			try {
 				$community_packages = $this->package_index()->getPackages();
 			} catch ( Exception $e ) {
-				WP_CLI::error( $e->getMessage() );
+				FP_CLI::error( $e->getMessage() );
 			}
 		}
 
@@ -720,7 +720,7 @@ class Package_Command extends WP_CLI_Command {
 					$package_index = new ComposerRepository( [ 'url' => self::PACKAGE_INDEX_URL ], $io, $config );
 				}
 			} catch ( Exception $e ) {
-				WP_CLI::error( $e->getMessage() );
+				FP_CLI::error( $e->getMessage() );
 			}
 		}
 
@@ -779,7 +779,7 @@ class Package_Command extends WP_CLI_Command {
 							$update_version = $latest->getPrettyVersion();
 						}
 					} catch ( Exception $e ) {
-						WP_CLI::warning( $e->getMessage() );
+						FP_CLI::warning( $e->getMessage() );
 						$update         = 'error';
 						$update_version = $update;
 					}
@@ -884,7 +884,7 @@ class Package_Command extends WP_CLI_Command {
 				$installed_packages[] = $package;
 			} elseif ( false !== $idx ) { // Legacy incorrect name check.
 				if ( ! $this->is_composer_v2() ) {
-					WP_CLI::warning( sprintf( "Found package '%s' misnamed '%s' in '%s'.", $package->getPrettyName(), $installed_package_keys[ $idx ], $this->get_composer_json_path() ) );
+					FP_CLI::warning( sprintf( "Found package '%s' misnamed '%s' in '%s'.", $package->getPrettyName(), $installed_package_keys[ $idx ], $this->get_composer_json_path() ) );
 				}
 				$installed_packages[] = $package;
 			}
@@ -928,14 +928,14 @@ class Package_Command extends WP_CLI_Command {
 	private static function get_package_name_and_version_from_dir_package( $dir_package ) {
 		$composer_file = $dir_package . '/composer.json';
 		if ( ! file_exists( $composer_file ) ) {
-			WP_CLI::error( sprintf( "Invalid package: composer.json file '%s' not found.", $composer_file ) );
+			FP_CLI::error( sprintf( "Invalid package: composer.json file '%s' not found.", $composer_file ) );
 		}
 		$composer_data = json_decode( file_get_contents( $composer_file ), true );
 		if ( null === $composer_data ) {
-			WP_CLI::error( sprintf( "Invalid package: failed to parse composer.json file '%s' as json.", $composer_file ) );
+			FP_CLI::error( sprintf( "Invalid package: failed to parse composer.json file '%s' as json.", $composer_file ) );
 		}
 		if ( empty( $composer_data['name'] ) ) {
-			WP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $composer_file ) );
+			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $composer_file ) );
 		}
 		$package_name = $composer_data['name'];
 		$version      = self::DEFAULT_DEV_BRANCH_CONSTRAINTS;
@@ -946,24 +946,24 @@ class Package_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Gets the WP-CLI packages composer.json object.
+	 * Gets the FP-CLI packages composer.json object.
 	 */
 	private function get_composer_json() {
 		return new JsonFile( $this->get_composer_json_path() );
 	}
 
 	/**
-	 * Gets the absolute path to the WP-CLI packages composer.json.
+	 * Gets the absolute path to the FP-CLI packages composer.json.
 	 */
 	private function get_composer_json_path() {
 		static $composer_path;
 
-		if ( null === $composer_path || getenv( 'WP_CLI_TEST_PACKAGE_GET_COMPOSER_JSON_PATH' ) ) {
+		if ( null === $composer_path || getenv( 'FP_CLI_TEST_PACKAGE_GET_COMPOSER_JSON_PATH' ) ) {
 
-			if ( getenv( 'WP_CLI_PACKAGES_DIR' ) ) {
-				$composer_path = Utils\trailingslashit( getenv( 'WP_CLI_PACKAGES_DIR' ) ) . 'composer.json';
+			if ( getenv( 'FP_CLI_PACKAGES_DIR' ) ) {
+				$composer_path = Utils\trailingslashit( getenv( 'FP_CLI_PACKAGES_DIR' ) ) . 'composer.json';
 			} else {
-				$composer_path = Utils\trailingslashit( Utils\get_home_dir() ) . '.wp-cli/packages/composer.json';
+				$composer_path = Utils\trailingslashit( Utils\get_home_dir() ) . '.fp-cli/packages/composer.json';
 			}
 
 			// `composer.json` and its directory might need to be created
@@ -973,7 +973,7 @@ class Package_Command extends WP_CLI_Command {
 				$composer_path = realpath( $composer_path );
 				if ( false === $composer_path ) {
 					$error = error_get_last();
-					WP_CLI::error( sprintf( "Composer path '%s' for packages/composer.json not found: %s", $composer_path, $error['message'] ) );
+					FP_CLI::error( sprintf( "Composer path '%s' for packages/composer.json not found: %s", $composer_path, $error['message'] ) );
 				}
 			}
 		}
@@ -982,19 +982,19 @@ class Package_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Gets the WP-CLI version for composer.json
+	 * Gets the FP-CLI version for composer.json
 	 */
-	private static function get_wp_cli_version_composer() {
-		preg_match( '#^[0-9\.]+(-(alpha|beta)[^-]{0,})?#', WP_CLI_VERSION, $matches );
+	private static function get_fp_cli_version_composer() {
+		preg_match( '#^[0-9\.]+(-(alpha|beta)[^-]{0,})?#', FP_CLI_VERSION, $matches );
 		$version = isset( $matches[0] ) ? $matches[0] : '';
 		return $version;
 	}
 
 	/**
-	 * Creates a default WP-CLI packages composer.json.
+	 * Creates a default FP-CLI packages composer.json.
 	 *
 	 * @param string $composer_path Where the composer.json should be created
-	 * @return string Returns the absolute path of the newly created default WP-CLI packages composer.json.
+	 * @return string Returns the absolute path of the newly created default FP-CLI packages composer.json.
 	 */
 	private function create_default_composer_json( $composer_path ) {
 
@@ -1002,14 +1002,14 @@ class Package_Command extends WP_CLI_Command {
 		if ( ! is_dir( $composer_dir ) ) {
 			if ( ! @mkdir( $composer_dir, 0777, true ) ) { // @codingStandardsIgnoreLine
 				$error = error_get_last();
-				WP_CLI::error( sprintf( "Composer directory '%s' for packages couldn't be created: %s", $composer_dir, $error['message'] ) );
+				FP_CLI::error( sprintf( "Composer directory '%s' for packages couldn't be created: %s", $composer_dir, $error['message'] ) );
 			}
 		}
 
 		$composer_dir = realpath( $composer_dir );
 		if ( false === $composer_dir ) {
 			$error = error_get_last();
-			WP_CLI::error( sprintf( "Composer directory '%s' for packages not found: %s", $composer_dir, $error['message'] ) );
+			FP_CLI::error( sprintf( "Composer directory '%s' for packages not found: %s", $composer_dir, $error['message'] ) );
 		}
 
 		$composer_path = Utils\trailingslashit( $composer_dir ) . Utils\basename( $composer_path );
@@ -1017,13 +1017,13 @@ class Package_Command extends WP_CLI_Command {
 		$json_file = new JsonFile( $composer_path );
 
 		$repositories = (object) [
-			'wp-cli' => (object) $this->composer_type_package,
+			'fp-cli' => (object) $this->composer_type_package,
 		];
 
 		$options = [
-			'name'              => 'wp-cli/wp-cli',
-			'description'       => 'Installed community packages used by WP-CLI',
-			'version'           => self::get_wp_cli_version_composer(),
+			'name'              => 'fp-cli/fp-cli',
+			'description'       => 'Installed community packages used by FP-CLI',
+			'version'           => self::get_fp_cli_version_composer(),
 			'authors'           => [ (object) $this->author_data ],
 			'homepage'          => self::PACKAGE_INDEX_URL,
 			'require'           => new stdClass(),
@@ -1037,7 +1037,7 @@ class Package_Command extends WP_CLI_Command {
 		try {
 			$json_file->write( $options );
 		} catch ( Exception $e ) {
-			WP_CLI::error( $e->getMessage() );
+			FP_CLI::error( $e->getMessage() );
 		}
 
 		return $composer_path;
@@ -1130,7 +1130,7 @@ class Package_Command extends WP_CLI_Command {
 		$response = Utils\http_request( 'GET', $raw_content_url, null /*data*/, $headers, $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
 			// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-			WP_CLI::warning(
+			FP_CLI::warning(
 				sprintf(
 					"Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.",
 					$raw_content_url,
@@ -1144,10 +1144,10 @@ class Package_Command extends WP_CLI_Command {
 		// Convert composer.json JSON to Array.
 		$composer_content_as_array = json_decode( $response->body, true );
 		if ( null === $composer_content_as_array ) {
-			WP_CLI::error( sprintf( "Failed to parse '%s' as json.", $raw_content_url ) );
+			FP_CLI::error( sprintf( "Failed to parse '%s' as json.", $raw_content_url ) );
 		}
 		if ( empty( $composer_content_as_array['name'] ) ) {
-			WP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $raw_content_url ) );
+			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $raw_content_url ) );
 		}
 
 		// Package name in composer.json that is hosted on GitHub.
@@ -1155,7 +1155,7 @@ class Package_Command extends WP_CLI_Command {
 
 		// If package name and repository name are not identical, then fix it.
 		if ( $package_name !== $package_name_on_repo ) {
-			WP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
+			FP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
 			$package_name = $package_name_on_repo;
 		}
 
@@ -1203,7 +1203,7 @@ class Package_Command extends WP_CLI_Command {
 		$response     = Utils\http_request( 'GET', $raw_content_public_url, null /*data*/, [], $options );
 		if ( ! $gitlab_token && ( $response->status_code < 200 || $response->status_code >= 300 ) ) {
 			// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-			WP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_public_url, $response->status_code, $package_name ) );
+			FP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_public_url, $response->status_code, $package_name ) );
 			return $package_name;
 		}
 
@@ -1213,7 +1213,7 @@ class Package_Command extends WP_CLI_Command {
 
 			if ( $response->status_code < 200 || $response->status_code >= 300 ) {
 				// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-				WP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_private_url, $response->status_code, $package_name ) );
+				FP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_private_url, $response->status_code, $package_name ) );
 				return $package_name;
 			}
 		}
@@ -1221,10 +1221,10 @@ class Package_Command extends WP_CLI_Command {
 		// Convert composer.json JSON to Array.
 		$composer_content_as_array = json_decode( $response->body, true );
 		if ( null === $composer_content_as_array ) {
-			WP_CLI::error( sprintf( "Failed to parse '%s' as json.", $response->url ) );
+			FP_CLI::error( sprintf( "Failed to parse '%s' as json.", $response->url ) );
 		}
 		if ( empty( $composer_content_as_array['name'] ) ) {
-			WP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $response->url ) );
+			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $response->url ) );
 		}
 
 		// Package name in composer.json that is hosted on Gitlab.
@@ -1232,7 +1232,7 @@ class Package_Command extends WP_CLI_Command {
 
 		// If package name and repository name are not identical, then fix it.
 		if ( $package_name !== $package_name_on_repo ) {
-			WP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
+			FP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
 			$package_name = $package_name_on_repo;
 		}
 		return $package_name;
@@ -1276,18 +1276,18 @@ class Package_Command extends WP_CLI_Command {
 		$options  = [ 'insecure' => $insecure ];
 		$response = Utils\http_request( 'GET', $url, null, [], $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
-			WP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
+			FP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
 			return 'master';
 		}
 
 		$package_data = json_decode( $response->body );
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
-			WP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
+			FP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
 			return 'master';
 		}
 
 		$tag = $package_data->tag_name;
-		WP_CLI::debug( "Extracted latest stable release tag: {$tag}", 'packages' );
+		FP_CLI::debug( "Extracted latest stable release tag: {$tag}", 'packages' );
 
 		return $tag;
 	}
@@ -1306,7 +1306,7 @@ class Package_Command extends WP_CLI_Command {
 		}
 
 		$constraint = "^{$matches[1]}";
-		WP_CLI::debug( "Guessing version constraint to use: {$constraint}", 'packages' );
+		FP_CLI::debug( "Guessing version constraint to use: {$constraint}", 'packages' );
 
 		return $constraint;
 	}
@@ -1346,9 +1346,9 @@ class Package_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Reads the WP-CLI packages composer.json, checking validity and returning array containing its path, contents, and decoded contents.
+	 * Reads the FP-CLI packages composer.json, checking validity and returning array containing its path, contents, and decoded contents.
 	 *
-	 * @return array Indexed array containing the path, the contents, and the decoded contents of the WP-CLI packages composer.json.
+	 * @return array Indexed array containing the path, the contents, and the decoded contents of the FP-CLI packages composer.json.
 	 */
 	private function get_composer_json_path_backup_decoded() {
 		$composer_json_obj = $this->get_composer_json();
@@ -1356,12 +1356,12 @@ class Package_Command extends WP_CLI_Command {
 		$composer_backup   = file_get_contents( $json_path );
 		if ( false === $composer_backup ) {
 			$error = error_get_last();
-			WP_CLI::error( sprintf( "Failed to read '%s': %s", $json_path, $error['message'] ) );
+			FP_CLI::error( sprintf( "Failed to read '%s': %s", $json_path, $error['message'] ) );
 		}
 		try {
 			$composer_backup_decoded = $composer_json_obj->read();
 		} catch ( Exception $e ) {
-			WP_CLI::error( sprintf( "Failed to parse '%s' as json: %s", $json_path, $e->getMessage() ) );
+			FP_CLI::error( sprintf( "Failed to parse '%s' as json: %s", $json_path, $e->getMessage() ) );
 		}
 
 		return [ $json_path, $composer_backup, $composer_backup_decoded ];
@@ -1379,7 +1379,7 @@ class Package_Command extends WP_CLI_Command {
 		// Allocate all needed memory beforehand as much as possible.
 		$revert_msg      = "Reverted composer.json.\n";
 		$revert_fail_msg = "Failed to revert composer.json.\n";
-		$memory_msg      = "WP-CLI ran out of memory. Please see https://bit.ly/wpclimem for further help.\n";
+		$memory_msg      = "FP-CLI ran out of memory. Please see https://bit.ly/fpclimem for further help.\n";
 		$memory_string   = 'Allowed memory size of';
 		$error_array     = [
 			'type'    => 42,
@@ -1445,7 +1445,7 @@ class Package_Command extends WP_CLI_Command {
 		$github_api_repo_url = "https://api.github.com/repos/{$package_name}";
 		$response            = Utils\http_request( 'GET', $github_api_repo_url, null /*data*/, $headers, $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
-			WP_CLI::warning(
+			FP_CLI::warning(
 				sprintf(
 					"Couldn't fetch default branch for package '%s' (HTTP code %d). Presuming default branch is 'master'.",
 					$package_name,
@@ -1458,14 +1458,14 @@ class Package_Command extends WP_CLI_Command {
 		$package_data = json_decode( $response->body );
 
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
-			WP_CLI::warning( "Couldn't fetch default branch for package '%s' (failed to decode JSON response). Presuming default branch is 'master'." );
+			FP_CLI::warning( "Couldn't fetch default branch for package '%s' (failed to decode JSON response). Presuming default branch is 'master'." );
 			return 'master';
 		}
 
 		$default_branch = $package_data->default_branch;
 
 		if ( ! is_string( $default_branch ) || empty( $default_branch ) ) {
-			WP_CLI::warning(
+			FP_CLI::warning(
 				sprintf(
 					"Couldn't fetch default branch for package '%s'. Presuming default branch is 'master'.",
 					$package_name
@@ -1474,7 +1474,7 @@ class Package_Command extends WP_CLI_Command {
 			return 'master';
 		}
 
-		WP_CLI::debug( "Detected package default branch: {$default_branch}", 'packages' );
+		FP_CLI::debug( "Detected package default branch: {$default_branch}", 'packages' );
 
 		return $default_branch;
 	}

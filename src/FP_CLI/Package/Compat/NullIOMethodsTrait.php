@@ -1,6 +1,6 @@
 <?php
 
-namespace WP_CLI\Package\Compat;
+namespace FP_CLI\Package\Compat;
 
 use Composer\InstalledVersions;
 use Composer\Semver\VersionParser;
