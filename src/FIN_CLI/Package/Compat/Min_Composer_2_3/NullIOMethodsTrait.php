@@ -1,8 +1,8 @@
 <?php
 
-namespace FP_CLI\Package\Compat\Min_Composer_2_3;
+namespace FIN_CLI\Package\Compat\Min_Composer_2_3;
 
-use FP_CLI;
+use FIN_CLI;
 
 trait NullIOMethodsTrait {
 	/**
@@ -29,8 +29,8 @@ trait NullIOMethodsTrait {
 	private static function output_clean_message( $messages ) {
 		$messages = (array) preg_replace( '#<(https?)([^>]+)>#', '$1$2', $messages );
 		foreach ( $messages as $message ) {
-			// phpcs:ignore FinPress.FP.AlternativeFunctions.strip_tags_strip_tags
-			FP_CLI::log( strip_tags( trim( $message ) ) );
+			// phpcs:ignore FinPress.FIN.AlternativeFunctions.strip_tags_strip_tags
+			FIN_CLI::log( strip_tags( trim( $message ) ) );
 		}
 	}
 }

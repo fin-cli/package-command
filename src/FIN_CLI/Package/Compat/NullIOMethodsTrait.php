@@ -1,6 +1,6 @@
 <?php
 
-namespace FP_CLI\Package\Compat;
+namespace FIN_CLI\Package\Compat;
 
 use Composer\InstalledVersions;
 use Composer\Semver\VersionParser;

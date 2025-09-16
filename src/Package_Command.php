@@ -15,18 +15,18 @@ use Composer\Repository;
 use Composer\Repository\CompositeRepository;
 use Composer\Repository\ComposerRepository;
 use Composer\Util\HttpDownloader;
-use FP_CLI\Package\ComposerIO;
-use FP_CLI\Extractor;
-use FP_CLI\Utils;
-use FP_CLI\JsonManipulator;
-use FP_CLI\PackageManagerEventSubscriber;
-use FP_CLI\RequestsLibrary;
+use FIN_CLI\Package\ComposerIO;
+use FIN_CLI\Extractor;
+use FIN_CLI\Utils;
+use FIN_CLI\JsonManipulator;
+use FIN_CLI\PackageManagerEventSubscriber;
+use FIN_CLI\RequestsLibrary;
 
 /**
- * Lists, installs, and removes FP-CLI packages.
+ * Lists, installs, and removes FIN-CLI packages.
  *
- * FP-CLI packages are community-maintained projects built on FP-CLI. They can
- * contain FP-CLI commands, but they can also just extend FP-CLI in some way.
+ * FIN-CLI packages are community-maintained projects built on FIN-CLI. They can
+ * contain FIN-CLI commands, but they can also just extend FIN-CLI in some way.
  *
  * Learn how to create your own command from the
  * [Commands Cookbook](https://make.finpress.org/cli/handbook/guides/commands-cookbook/)
@@ -34,17 +34,17 @@ use FP_CLI\RequestsLibrary;
  * ## EXAMPLES
  *
  *     # List installed packages.
- *     $ fp package list
+ *     $ fin package list
  *     +-----------------------+------------------+----------+-----------+----------------+
  *     | name                  | authors          | version  | update    | update_version |
  *     +-----------------------+------------------+----------+-----------+----------------+
- *     | fp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
+ *     | fin-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
  *     +-----------------------+------------------+----------+-----------+----------------+
  *
  *     # Install the latest development version of the package.
- *     $ fp package install fp-cli/server-command
- *     Installing package fp-cli/server-command (dev-main)
- *     Updating /home/person/.fp-cli/packages/composer.json to require the package...
+ *     $ fin package install fin-cli/server-command
+ *     Installing package fin-cli/server-command (dev-main)
+ *     Updating /home/person/.fin-cli/packages/composer.json to require the package...
  *     Using Composer to install the package...
  *     ---
  *     Loading composer repositories with package information
@@ -60,36 +60,36 @@ use FP_CLI\RequestsLibrary;
  *     Success: Package installed.
  *
  *     # Uninstall package.
- *     $ fp package uninstall fp-cli/server-command
- *     Removing require statement for package 'fp-cli/server-command' from /home/person/.fp-cli/packages/composer.json
- *     Removing repository details from /home/person/.fp-cli/packages/composer.json
+ *     $ fin package uninstall fin-cli/server-command
+ *     Removing require statement for package 'fin-cli/server-command' from /home/person/.fin-cli/packages/composer.json
+ *     Removing repository details from /home/person/.fin-cli/packages/composer.json
  *     Removing package directories and regenerating autoloader...
  *     Success: Uninstalled package.
  *
- * @package FP-CLI
+ * @package FIN-CLI
  *
- * @when before_fp_load
+ * @when before_fin_load
  */
-class Package_Command extends FP_CLI_Command {
+class Package_Command extends FIN_CLI_Command {
 
-	const PACKAGE_INDEX_URL = 'https://fp-cli.org/package-index/';
+	const PACKAGE_INDEX_URL = 'https://fin-cli.org/package-index/';
 
 	const DEFAULT_DEV_BRANCH_CONSTRAINTS = 'dev-main || dev-master || dev-trunk';
 
 	private $version_selector = false;
 
 	/**
-	 * Default author data used while creating default FP-CLI packages composer.json.
+	 * Default author data used while creating default FIN-CLI packages composer.json.
 	 *
 	 * @var array
 	 */
 	private $author_data = [
-		'name'  => 'FP-CLI',
-		'email' => 'noreply@fpcli.org',
+		'name'  => 'FIN-CLI',
+		'email' => 'noreply@fincli.org',
 	];
 
 	/**
-	 * Default repository data used while creating default FP-CLI packages composer.json.
+	 * Default repository data used while creating default FIN-CLI packages composer.json.
 	 * @var array
 	 */
 	private $composer_type_package = [
@@ -98,11 +98,11 @@ class Package_Command extends FP_CLI_Command {
 	];
 
 	/**
-	 * Browses FP-CLI packages available for installation.
+	 * Browses FIN-CLI packages available for installation.
 	 *
-	 * Lists packages available for installation from the [Package Index](http://fp-cli.org/package-index/).
+	 * Lists packages available for installation from the [Package Index](http://fin-cli.org/package-index/).
 	 * Although the package index will remain in place for backward compatibility reasons, it has been
-	 * deprecated and will not be updated further. Please refer to https://github.com/fp-cli/ideas/issues/51
+	 * deprecated and will not be updated further. Please refer to https://github.com/fin-cli/ideas/issues/51
 	 * to read about its potential replacement.
 	 *
 	 * ## OPTIONS
@@ -135,52 +135,52 @@ class Package_Command extends FP_CLI_Command {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     $ fp package browse --format=yaml
+	 *     $ fin package browse --format=yaml
 	 *     ---
 	 *     10up/mu-migration:
 	 *       name: 10up/mu-migration
-	 *       description: A set of FP-CLI commands to support the migration of single FinPress instances to multisite
+	 *       description: A set of FIN-CLI commands to support the migration of single FinPress instances to multisite
 	 *       authors: Nícholas André
 	 *       version: dev-main, dev-develop
-	 *     aaemnnosttv/fp-cli-dotenv-command:
-	 *       name: aaemnnosttv/fp-cli-dotenv-command
-	 *       description: Dotenv commands for FP-CLI
+	 *     aaemnnosttv/fin-cli-dotenv-command:
+	 *       name: aaemnnosttv/fin-cli-dotenv-command
+	 *       description: Dotenv commands for FIN-CLI
 	 *       authors: Evan Mattson
 	 *       version: v0.1, v0.1-beta.1, v0.2, dev-main, dev-dev, dev-develop, dev-tests/behat
-	 *     aaemnnosttv/fp-cli-http-command:
-	 *       name: aaemnnosttv/fp-cli-http-command
-	 *       description: FP-CLI command for using the FinPress HTTP API
+	 *     aaemnnosttv/fin-cli-http-command:
+	 *       name: aaemnnosttv/fin-cli-http-command
+	 *       description: FIN-CLI command for using the FinPress HTTP API
 	 *       authors: Evan Mattson
 	 *       version: dev-main
 	 */
 	public function browse( $_, $assoc_args ) {
 		$this->set_composer_auth_env_var();
 		if ( empty( $assoc_args['format'] ) || 'table' === $assoc_args['format'] ) {
-			FP_CLI::line( FP_CLI::colorize( '%CAlthough the package index will remain in place for backward compatibility reasons, it has been deprecated and will not be updated further. Please refer to https://github.com/fp-cli/ideas/issues/51 to read about its potential replacement.%n' ) );
+			FIN_CLI::line( FIN_CLI::colorize( '%CAlthough the package index will remain in place for backward compatibility reasons, it has been deprecated and will not be updated further. Please refer to https://github.com/fin-cli/ideas/issues/51 to read about its potential replacement.%n' ) );
 		}
 		$this->show_packages( 'browse', $this->get_community_packages(), $assoc_args );
 	}
 
 	/**
-	 * Installs a FP-CLI package.
+	 * Installs a FIN-CLI package.
 	 *
 	 * Packages are required to be a valid Composer package, and can be
 	 * specified as:
 	 *
-	 * * Package name from FP-CLI's package index.
+	 * * Package name from FIN-CLI's package index.
 	 * * Git URL accessible by the current shell user.
 	 * * Path to a directory on the local machine.
 	 * * Local or remote .zip file.
 	 *
-	 * Packages are installed to `~/.fp-cli/packages/` by default. Use the
-	 * `FP_CLI_PACKAGES_DIR` environment variable to provide a custom path.
+	 * Packages are installed to `~/.fin-cli/packages/` by default. Use the
+	 * `FIN_CLI_PACKAGES_DIR` environment variable to provide a custom path.
 	 *
-	 * When installing a local directory, FP-CLI simply registers a
-	 * reference to the directory. If you move or delete the directory, FP-CLI's
+	 * When installing a local directory, FIN-CLI simply registers a
+	 * reference to the directory. If you move or delete the directory, FIN-CLI's
 	 * reference breaks.
 	 *
-	 * When installing a .zip file, FP-CLI extracts the package to
-	 * `~/.fp-cli/packages/local/<package-name>`.
+	 * When installing a .zip file, FIN-CLI extracts the package to
+	 * `~/.fin-cli/packages/local/<package-name>`.
 	 *
 	 * If Github token authorization is required, a GitHub Personal Access Token
 	 * (https://github.com/settings/tokens) can be used. The following command
@@ -194,7 +194,7 @@ class Package_Command extends FP_CLI_Command {
 	 * <name|git|path|zip>
 	 * : Name, git URL, directory path, or .zip file for the package to install.
 	 * Names can optionally include a version constraint
-	 * (e.g. fp-cli/server-command:@stable).
+	 * (e.g. fin-cli/server-command:@stable).
 	 *
 	 * [--insecure]
 	 * : Retry downloads without certificate validation if TLS handshake fails. Note: This makes the request vulnerable to a MITM attack.
@@ -202,16 +202,16 @@ class Package_Command extends FP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Install a package hosted at a git URL.
-	 *     $ fp package install runcommand/hook
+	 *     $ fin package install runcommand/hook
 	 *
 	 *     # Install the latest stable version.
-	 *     $ fp package install fp-cli/server-command:@stable
+	 *     $ fin package install fin-cli/server-command:@stable
 	 *
 	 *     # Install a package hosted at a GitLab.com URL.
-	 *     $ fp package install https://gitlab.com/foo/fp-cli-bar-command.git
+	 *     $ fin package install https://gitlab.com/foo/fin-cli-bar-command.git
 	 *
 	 *     # Install a package in a .zip file.
-	 *     $ fp package install google-sitemap-generator-cli.zip
+	 *     $ fin package install google-sitemap-generator-cli.zip
 	 */
 	public function install( $args, $assoc_args ) {
 		list( $package_name ) = $args;
@@ -231,14 +231,14 @@ class Package_Command extends FP_CLI_Command {
 			if ( preg_match( '#([^:\/]+\/[^\/]+)\.git#', $package_name, $matches ) ) {
 				$package_name = $this->check_git_package_name( $matches[1], $package_name, $version, $insecure );
 			} else {
-				FP_CLI::error( "Couldn't parse package name from expected path '<name>/<package>'." );
+				FIN_CLI::error( "Couldn't parse package name from expected path '<name>/<package>'." );
 			}
 		} elseif ( ( false !== strpos( $package_name, '://' ) && false !== stripos( $package_name, '.zip' ) )
 			|| ( pathinfo( $package_name, PATHINFO_EXTENSION ) === 'zip' && is_file( $package_name ) ) ) {
 			// Download the remote ZIP file to a temp directory
 			$temp = false;
 			if ( false !== strpos( $package_name, '://' ) ) {
-				$temp         = Utils\get_temp_dir() . uniqid( 'fp-cli-package_', true /*more_entropy*/ ) . '.zip';
+				$temp         = Utils\get_temp_dir() . uniqid( 'fin-cli-package_', true /*more_entropy*/ ) . '.zip';
 				$options      = [
 					'timeout'  => 600,
 					'filename' => $temp,
@@ -249,11 +249,11 @@ class Package_Command extends FP_CLI_Command {
 				$response     = Utils\http_request( 'GET', $package_name, null, $headers, $options );
 				if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
 					@unlink( $temp ); // @codingStandardsIgnoreLine
-					FP_CLI::error( sprintf( "Couldn't download package from '%s' (HTTP code %d).", $package_name, $response->status_code ) );
+					FIN_CLI::error( sprintf( "Couldn't download package from '%s' (HTTP code %d).", $package_name, $response->status_code ) );
 				}
 				$package_name = $temp;
 			}
-			$dir_package = Utils\get_temp_dir() . uniqid( 'fp-cli-package_', true /*more_entropy*/ );
+			$dir_package = Utils\get_temp_dir() . uniqid( 'fin-cli-package_', true /*more_entropy*/ );
 			try {
 				// Extract the package to get the package name
 				Extractor::extract( $package_name, $dir_package );
@@ -263,7 +263,7 @@ class Package_Command extends FP_CLI_Command {
 				}
 				list( $package_name, $version ) = self::get_package_name_and_version_from_dir_package( $dir_package );
 				// Move to a location based on the package name
-				$local_dir          = rtrim( FP_CLI::get_runner()->get_packages_dir_path(), '/' ) . '/local/';
+				$local_dir          = rtrim( FIN_CLI::get_runner()->get_packages_dir_path(), '/' ) . '/local/';
 				$actual_dir_package = $local_dir . str_replace( '/', '-', $package_name );
 				Extractor::copy_overwrite_files( $dir_package, $actual_dir_package );
 				Extractor::rmdir( $dir_package );
@@ -277,10 +277,10 @@ class Package_Command extends FP_CLI_Command {
 					try {
 						Extractor::rmdir( $dir_package );
 					} catch ( Exception $rmdir_e ) {
-						FP_CLI::warning( $rmdir_e->getMessage() );
+						FIN_CLI::warning( $rmdir_e->getMessage() );
 					}
 				}
-				FP_CLI::error( $e->getMessage() );
+				FIN_CLI::error( $e->getMessage() );
 			}
 		} elseif ( is_dir( $package_name ) && file_exists( $package_name . '/composer.json' ) ) {
 			$dir_package = $package_name;
@@ -294,7 +294,7 @@ class Package_Command extends FP_CLI_Command {
 			}
 			$package = $this->get_package_by_shortened_identifier( $package_name );
 			if ( ! $package ) {
-				FP_CLI::error( sprintf( "Invalid package: shortened identifier '%s' not found.", $package_name ) );
+				FIN_CLI::error( sprintf( "Invalid package: shortened identifier '%s' not found.", $package_name ) );
 			}
 			if ( is_string( $package ) ) {
 				if ( $this->is_git_repository( $package ) ) {
@@ -326,9 +326,9 @@ class Package_Command extends FP_CLI_Command {
 			$version = self::DEFAULT_DEV_BRANCH_CONSTRAINTS;
 		}
 
-		FP_CLI::log( sprintf( 'Installing package %s (%s)', $package_name, $version ) );
+		FIN_CLI::log( sprintf( 'Installing package %s (%s)', $package_name, $version ) );
 
-		// Read the FP-CLI packages composer.json and do some initial error checking.
+		// Read the FIN-CLI packages composer.json and do some initial error checking.
 		list( $json_path, $composer_backup, $composer_backup_decoded ) = $this->get_composer_json_path_backup_decoded();
 
 		// Revert on shutdown if `$revert` is true (set to false on success).
@@ -336,16 +336,16 @@ class Package_Command extends FP_CLI_Command {
 		$this->register_revert_shutdown_function( $json_path, $composer_backup, $revert );
 
 		// Add the 'require' to composer.json
-		FP_CLI::log( sprintf( 'Updating %s to require the package...', $json_path ) );
+		FIN_CLI::log( sprintf( 'Updating %s to require the package...', $json_path ) );
 		$json_manipulator = new JsonManipulator( $composer_backup );
-		$json_manipulator->addMainKey( 'name', 'fp-cli/fp-cli' );
-		$json_manipulator->addMainKey( 'version', self::get_fp_cli_version_composer() );
+		$json_manipulator->addMainKey( 'name', 'fin-cli/fin-cli' );
+		$json_manipulator->addMainKey( 'version', self::get_fin_cli_version_composer() );
 		$json_manipulator->addLink( 'require', $package_name, $version, false /*sortPackages*/, true /*caseInsensitive*/ );
 		$json_manipulator->addConfigSetting( 'secure-http', true );
 
 		$package_args = [];
 		if ( $git_package ) {
-			FP_CLI::log( sprintf( 'Registering %s as a VCS repository...', $git_package ) );
+			FIN_CLI::log( sprintf( 'Registering %s as a VCS repository...', $git_package ) );
 			$package_args = [
 				'type' => 'vcs',
 				'url'  => $git_package,
@@ -357,7 +357,7 @@ class Package_Command extends FP_CLI_Command {
 				true /*caseInsensitive*/
 			);
 		} elseif ( $dir_package ) {
-			FP_CLI::log( sprintf( 'Registering %s as a path repository...', $dir_package ) );
+			FIN_CLI::log( sprintf( 'Registering %s as a path repository...', $dir_package ) );
 			$package_args = [
 				'type' => 'path',
 				'url'  => $dir_package,
@@ -370,11 +370,11 @@ class Package_Command extends FP_CLI_Command {
 			);
 		}
 		// If the composer file does not contain the current package index repository, refresh the repository definition.
-		if ( empty( $composer_backup_decoded['repositories']['fp-cli']['url'] ) || self::PACKAGE_INDEX_URL !== $composer_backup_decoded['repositories']['fp-cli']['url'] ) {
-			FP_CLI::log( 'Updating package index repository url...' );
+		if ( empty( $composer_backup_decoded['repositories']['fin-cli']['url'] ) || self::PACKAGE_INDEX_URL !== $composer_backup_decoded['repositories']['fin-cli']['url'] ) {
+			FIN_CLI::log( 'Updating package index repository url...' );
 			$package_args = $this->composer_type_package;
 			$json_manipulator->addRepository(
-				'fp-cli',
+				'fin-cli',
 				$package_args
 			);
 		}
@@ -391,31 +391,31 @@ class Package_Command extends FP_CLI_Command {
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
 
 		// Try running the installer, but revert composer.json if failed
-		FP_CLI::log( 'Using Composer to install the package...' );
-		FP_CLI::log( '---' );
+		FIN_CLI::log( 'Using Composer to install the package...' );
+		FIN_CLI::log( '---' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			FP_CLI::warning( $e->getMessage() );
+			FIN_CLI::warning( $e->getMessage() );
 		}
 
 		// TODO: The --insecure flag should cause another Composer run with verify disabled.
 
-		FP_CLI::log( '---' );
+		FIN_CLI::log( '---' );
 
 		if ( 0 === $res ) {
 			$revert = false;
-			FP_CLI::success( 'Package installed.' );
+			FIN_CLI::success( 'Package installed.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			FP_CLI::debug( "composer.json content:\n" . file_get_contents( $json_path ), 'packages' );
-			FP_CLI::error( "Package installation failed{$res_msg}." );
+			FIN_CLI::debug( "composer.json content:\n" . file_get_contents( $json_path ), 'packages' );
+			FIN_CLI::error( "Package installation failed{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Lists installed FP-CLI packages.
+	 * Lists installed FIN-CLI packages.
 	 *
 	 * ## OPTIONS
 	 *
@@ -451,11 +451,11 @@ class Package_Command extends FP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # List installed packages.
-	 *     $ fp package list
+	 *     $ fin package list
 	 *     +-----------------------+------------------+----------+-----------+----------------+
 	 *     | name                  | authors          | version  | update    | update_version |
 	 *     +-----------------------+------------------+----------+-----------+----------------+
-	 *     | fp-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
+	 *     | fin-cli/server-command | Daniel Bachhuber | dev-main | available | 2.x-dev        |
 	 *     +-----------------------+------------------+----------+-----------+----------------+
 	 *
 	 * @subcommand list
@@ -466,7 +466,7 @@ class Package_Command extends FP_CLI_Command {
 	}
 
 	/**
-	 * Gets the path to an installed FP-CLI package, or the package directory.
+	 * Gets the path to an installed FIN-CLI package, or the package directory.
 	 *
 	 * If you want to contribute to a package, this is a great way to jump to it.
 	 *
@@ -478,34 +478,34 @@ class Package_Command extends FP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Get package path.
-	 *     $ fp package path
-	 *     /home/person/.fp-cli/packages/
+	 *     $ fin package path
+	 *     /home/person/.fin-cli/packages/
 	 *
 	 *     # Get path to an installed package.
-	 *     $ fp package path fp-cli/server-command
-	 *     /home/person/.fp-cli/packages/vendor/fp-cli/server-command
+	 *     $ fin package path fin-cli/server-command
+	 *     /home/person/.fin-cli/packages/vendor/fin-cli/server-command
 	 *
 	 *     # Change directory to package path.
-	 *     $ cd $(fp package path) && pwd
-	 *     /home/vagrant/.fp-cli/packages
+	 *     $ cd $(fin package path) && pwd
+	 *     /home/vagrant/.fin-cli/packages
 	 */
 	public function path( $args ) {
-		$packages_dir = FP_CLI::get_runner()->get_packages_dir_path();
+		$packages_dir = FIN_CLI::get_runner()->get_packages_dir_path();
 		if ( ! empty( $args ) ) {
 			$packages_dir .= 'vendor/' . $args[0];
 			if ( ! is_dir( $packages_dir ) ) {
-				FP_CLI::error( 'Invalid package name.' );
+				FIN_CLI::error( 'Invalid package name.' );
 			}
 		}
-		FP_CLI::line( $packages_dir );
+		FIN_CLI::line( $packages_dir );
 	}
 
 	/**
-	 * Updates all installed FP-CLI packages to their latest version.
+	 * Updates all installed FIN-CLI packages to their latest version.
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     $ fp package update
+	 *     $ fin package update
 	 *     Using Composer to update packages...
 	 *     ---
 	 *     Loading composer repositories with package information
@@ -531,28 +531,28 @@ class Package_Command extends FP_CLI_Command {
 		$install = Installer::create( new ComposerIO(), $composer );
 		$install->setUpdate( true ); // Installer class will only override composer.lock with this flag
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
-		FP_CLI::log( 'Using Composer to update packages...' );
-		FP_CLI::log( '---' );
+		FIN_CLI::log( 'Using Composer to update packages...' );
+		FIN_CLI::log( '---' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			FP_CLI::warning( $e->getMessage() );
+			FIN_CLI::warning( $e->getMessage() );
 		}
-		FP_CLI::log( '---' );
+		FIN_CLI::log( '---' );
 
 		// TODO: The --insecure (to be added here) flag should cause another Composer run with verify disabled.
 
 		if ( 0 === $res ) {
-			FP_CLI::success( 'Packages updated.' );
+			FIN_CLI::success( 'Packages updated.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			FP_CLI::error( "Failed to update packages{$res_msg}." );
+			FIN_CLI::error( "Failed to update packages{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Uninstalls a FP-CLI package.
+	 * Uninstalls a FIN-CLI package.
 	 *
 	 * ## OPTIONS
 	 *
@@ -565,9 +565,9 @@ class Package_Command extends FP_CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Uninstall package.
-	 *     $ fp package uninstall fp-cli/server-command
-	 *     Removing require statement for package 'fp-cli/server-command' from /home/person/.fp-cli/packages/composer.json
-	 *     Removing repository details from /home/person/.fp-cli/packages/composer.json
+	 *     $ fin package uninstall fin-cli/server-command
+	 *     Removing require statement for package 'fin-cli/server-command' from /home/person/.fin-cli/packages/composer.json
+	 *     Removing repository details from /home/person/.fin-cli/packages/composer.json
 	 *     Removing package directories and regenerating autoloader...
 	 *     Success: Uninstalled package.
 	 */
@@ -581,7 +581,7 @@ class Package_Command extends FP_CLI_Command {
 		if ( false === $package ) {
 			$package_name = $this->get_package_by_shortened_identifier( $package_name );
 			if ( false === $package_name ) {
-				FP_CLI::error( 'Package not installed.' );
+				FIN_CLI::error( 'Package not installed.' );
 			}
 			$version = "dev-{$this->get_github_default_branch( $package_name, $insecure )}";
 			$matches = [];
@@ -592,7 +592,7 @@ class Package_Command extends FP_CLI_Command {
 			$package_name = $package->getPrettyName(); // Make sure package name is what's in composer.json.
 		}
 
-		// Read the FP-CLI packages composer.json and do some initial error checking.
+		// Read the FIN-CLI packages composer.json and do some initial error checking.
 		list( $json_path, $composer_backup, $composer_backup_decoded ) = $this->get_composer_json_path_backup_decoded();
 
 		// Revert on shutdown if `$revert` is true (set to false on success).
@@ -600,12 +600,12 @@ class Package_Command extends FP_CLI_Command {
 		$this->register_revert_shutdown_function( $json_path, $composer_backup, $revert );
 
 		// Remove the 'require' from composer.json.
-		FP_CLI::log( sprintf( 'Removing require statement for package \'%s\' from %s', $package_name, $json_path ) );
+		FIN_CLI::log( sprintf( 'Removing require statement for package \'%s\' from %s', $package_name, $json_path ) );
 		$manipulator = new JsonManipulator( $composer_backup );
 		$manipulator->removeSubNode( 'require', $package_name, true /*caseInsensitive*/ );
 
 		// Remove the 'repository' details from composer.json.
-		FP_CLI::log( sprintf( 'Removing repository details from %s', $json_path ) );
+		FIN_CLI::log( sprintf( 'Removing repository details from %s', $json_path ) );
 		$manipulator->removeSubNode( 'repositories', $package_name, true /*caseInsensitive*/ );
 
 		file_put_contents( $json_path, $manipulator->getContents() );
@@ -616,25 +616,25 @@ class Package_Command extends FP_CLI_Command {
 		$install->setUpdate( true ); // Installer class will only override composer.lock with this flag
 		$install->setPreferSource( true ); // Use VCS when VCS for easier contributions.
 
-		FP_CLI::log( 'Removing package directories and regenerating autoloader...' );
+		FIN_CLI::log( 'Removing package directories and regenerating autoloader...' );
 		$res = false;
 		try {
 			$res = $install->run();
 		} catch ( Exception $e ) {
-			FP_CLI::warning( $e->getMessage() );
+			FIN_CLI::warning( $e->getMessage() );
 		}
 
 		if ( 0 === $res ) {
 			$revert = false;
-			FP_CLI::success( 'Uninstalled package.' );
+			FIN_CLI::success( 'Uninstalled package.' );
 		} else {
 			$res_msg = $res ? " (Composer return code {$res})" : ''; // $res may be null apparently.
-			FP_CLI::error( "Package removal failed{$res_msg}." );
+			FIN_CLI::error( "Package removal failed{$res_msg}." );
 		}
 	}
 
 	/**
-	 * Checks whether a package is a FP-CLI community package based
+	 * Checks whether a package is a FIN-CLI community package based
 	 * on membership in our package index.
 	 *
 	 * @param object      $package     A package object
@@ -654,7 +654,7 @@ class Package_Command extends FP_CLI_Command {
 
 			// Composer's auto-load generating code makes some assumptions about where
 			// the 'vendor-dir' is, and where Composer is running from.
-			// Best to just pretend we're installing a package from ~/.fp-cli or similar
+			// Best to just pretend we're installing a package from ~/.fin-cli or similar
 			chdir( pathinfo( $composer_path, PATHINFO_DIRNAME ) );
 
 			// Prevent DateTime error/warning when no timezone set.
@@ -664,7 +664,7 @@ class Package_Command extends FP_CLI_Command {
 
 			$composer = Factory::create( new NullIO(), $composer_path );
 		} catch ( Exception $e ) {
-			FP_CLI::error( sprintf( 'Failed to get composer instance: %s', $e->getMessage() ) );
+			FIN_CLI::error( sprintf( 'Failed to get composer instance: %s', $e->getMessage() ) );
 		}
 		return $composer;
 	}
@@ -682,7 +682,7 @@ class Package_Command extends FP_CLI_Command {
 			try {
 				$community_packages = $this->package_index()->getPackages();
 			} catch ( Exception $e ) {
-				FP_CLI::error( $e->getMessage() );
+				FIN_CLI::error( $e->getMessage() );
 			}
 		}
 
@@ -720,7 +720,7 @@ class Package_Command extends FP_CLI_Command {
 					$package_index = new ComposerRepository( [ 'url' => self::PACKAGE_INDEX_URL ], $io, $config );
 				}
 			} catch ( Exception $e ) {
-				FP_CLI::error( $e->getMessage() );
+				FIN_CLI::error( $e->getMessage() );
 			}
 		}
 
@@ -779,7 +779,7 @@ class Package_Command extends FP_CLI_Command {
 							$update_version = $latest->getPrettyVersion();
 						}
 					} catch ( Exception $e ) {
-						FP_CLI::warning( $e->getMessage() );
+						FIN_CLI::warning( $e->getMessage() );
 						$update         = 'error';
 						$update_version = $update;
 					}
@@ -884,7 +884,7 @@ class Package_Command extends FP_CLI_Command {
 				$installed_packages[] = $package;
 			} elseif ( false !== $idx ) { // Legacy incorrect name check.
 				if ( ! $this->is_composer_v2() ) {
-					FP_CLI::warning( sprintf( "Found package '%s' misnamed '%s' in '%s'.", $package->getPrettyName(), $installed_package_keys[ $idx ], $this->get_composer_json_path() ) );
+					FIN_CLI::warning( sprintf( "Found package '%s' misnamed '%s' in '%s'.", $package->getPrettyName(), $installed_package_keys[ $idx ], $this->get_composer_json_path() ) );
 				}
 				$installed_packages[] = $package;
 			}
@@ -928,14 +928,14 @@ class Package_Command extends FP_CLI_Command {
 	private static function get_package_name_and_version_from_dir_package( $dir_package ) {
 		$composer_file = $dir_package . '/composer.json';
 		if ( ! file_exists( $composer_file ) ) {
-			FP_CLI::error( sprintf( "Invalid package: composer.json file '%s' not found.", $composer_file ) );
+			FIN_CLI::error( sprintf( "Invalid package: composer.json file '%s' not found.", $composer_file ) );
 		}
 		$composer_data = json_decode( file_get_contents( $composer_file ), true );
 		if ( null === $composer_data ) {
-			FP_CLI::error( sprintf( "Invalid package: failed to parse composer.json file '%s' as json.", $composer_file ) );
+			FIN_CLI::error( sprintf( "Invalid package: failed to parse composer.json file '%s' as json.", $composer_file ) );
 		}
 		if ( empty( $composer_data['name'] ) ) {
-			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $composer_file ) );
+			FIN_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $composer_file ) );
 		}
 		$package_name = $composer_data['name'];
 		$version      = self::DEFAULT_DEV_BRANCH_CONSTRAINTS;
@@ -946,24 +946,24 @@ class Package_Command extends FP_CLI_Command {
 	}
 
 	/**
-	 * Gets the FP-CLI packages composer.json object.
+	 * Gets the FIN-CLI packages composer.json object.
 	 */
 	private function get_composer_json() {
 		return new JsonFile( $this->get_composer_json_path() );
 	}
 
 	/**
-	 * Gets the absolute path to the FP-CLI packages composer.json.
+	 * Gets the absolute path to the FIN-CLI packages composer.json.
 	 */
 	private function get_composer_json_path() {
 		static $composer_path;
 
-		if ( null === $composer_path || getenv( 'FP_CLI_TEST_PACKAGE_GET_COMPOSER_JSON_PATH' ) ) {
+		if ( null === $composer_path || getenv( 'FIN_CLI_TEST_PACKAGE_GET_COMPOSER_JSON_PATH' ) ) {
 
-			if ( getenv( 'FP_CLI_PACKAGES_DIR' ) ) {
-				$composer_path = Utils\trailingslashit( getenv( 'FP_CLI_PACKAGES_DIR' ) ) . 'composer.json';
+			if ( getenv( 'FIN_CLI_PACKAGES_DIR' ) ) {
+				$composer_path = Utils\trailingslashit( getenv( 'FIN_CLI_PACKAGES_DIR' ) ) . 'composer.json';
 			} else {
-				$composer_path = Utils\trailingslashit( Utils\get_home_dir() ) . '.fp-cli/packages/composer.json';
+				$composer_path = Utils\trailingslashit( Utils\get_home_dir() ) . '.fin-cli/packages/composer.json';
 			}
 
 			// `composer.json` and its directory might need to be created
@@ -973,7 +973,7 @@ class Package_Command extends FP_CLI_Command {
 				$composer_path = realpath( $composer_path );
 				if ( false === $composer_path ) {
 					$error = error_get_last();
-					FP_CLI::error( sprintf( "Composer path '%s' for packages/composer.json not found: %s", $composer_path, $error['message'] ) );
+					FIN_CLI::error( sprintf( "Composer path '%s' for packages/composer.json not found: %s", $composer_path, $error['message'] ) );
 				}
 			}
 		}
@@ -982,19 +982,19 @@ class Package_Command extends FP_CLI_Command {
 	}
 
 	/**
-	 * Gets the FP-CLI version for composer.json
+	 * Gets the FIN-CLI version for composer.json
 	 */
-	private static function get_fp_cli_version_composer() {
-		preg_match( '#^[0-9\.]+(-(alpha|beta)[^-]{0,})?#', FP_CLI_VERSION, $matches );
+	private static function get_fin_cli_version_composer() {
+		preg_match( '#^[0-9\.]+(-(alpha|beta)[^-]{0,})?#', FIN_CLI_VERSION, $matches );
 		$version = isset( $matches[0] ) ? $matches[0] : '';
 		return $version;
 	}
 
 	/**
-	 * Creates a default FP-CLI packages composer.json.
+	 * Creates a default FIN-CLI packages composer.json.
 	 *
 	 * @param string $composer_path Where the composer.json should be created
-	 * @return string Returns the absolute path of the newly created default FP-CLI packages composer.json.
+	 * @return string Returns the absolute path of the newly created default FIN-CLI packages composer.json.
 	 */
 	private function create_default_composer_json( $composer_path ) {
 
@@ -1002,14 +1002,14 @@ class Package_Command extends FP_CLI_Command {
 		if ( ! is_dir( $composer_dir ) ) {
 			if ( ! @mkdir( $composer_dir, 0777, true ) ) { // @codingStandardsIgnoreLine
 				$error = error_get_last();
-				FP_CLI::error( sprintf( "Composer directory '%s' for packages couldn't be created: %s", $composer_dir, $error['message'] ) );
+				FIN_CLI::error( sprintf( "Composer directory '%s' for packages couldn't be created: %s", $composer_dir, $error['message'] ) );
 			}
 		}
 
 		$composer_dir = realpath( $composer_dir );
 		if ( false === $composer_dir ) {
 			$error = error_get_last();
-			FP_CLI::error( sprintf( "Composer directory '%s' for packages not found: %s", $composer_dir, $error['message'] ) );
+			FIN_CLI::error( sprintf( "Composer directory '%s' for packages not found: %s", $composer_dir, $error['message'] ) );
 		}
 
 		$composer_path = Utils\trailingslashit( $composer_dir ) . Utils\basename( $composer_path );
@@ -1017,13 +1017,13 @@ class Package_Command extends FP_CLI_Command {
 		$json_file = new JsonFile( $composer_path );
 
 		$repositories = (object) [
-			'fp-cli' => (object) $this->composer_type_package,
+			'fin-cli' => (object) $this->composer_type_package,
 		];
 
 		$options = [
-			'name'              => 'fp-cli/fp-cli',
-			'description'       => 'Installed community packages used by FP-CLI',
-			'version'           => self::get_fp_cli_version_composer(),
+			'name'              => 'fin-cli/fin-cli',
+			'description'       => 'Installed community packages used by FIN-CLI',
+			'version'           => self::get_fin_cli_version_composer(),
 			'authors'           => [ (object) $this->author_data ],
 			'homepage'          => self::PACKAGE_INDEX_URL,
 			'require'           => new stdClass(),
@@ -1037,7 +1037,7 @@ class Package_Command extends FP_CLI_Command {
 		try {
 			$json_file->write( $options );
 		} catch ( Exception $e ) {
-			FP_CLI::error( $e->getMessage() );
+			FIN_CLI::error( $e->getMessage() );
 		}
 
 		return $composer_path;
@@ -1130,7 +1130,7 @@ class Package_Command extends FP_CLI_Command {
 		$response = Utils\http_request( 'GET', $raw_content_url, null /*data*/, $headers, $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
 			// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-			FP_CLI::warning(
+			FIN_CLI::warning(
 				sprintf(
 					"Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.",
 					$raw_content_url,
@@ -1144,10 +1144,10 @@ class Package_Command extends FP_CLI_Command {
 		// Convert composer.json JSON to Array.
 		$composer_content_as_array = json_decode( $response->body, true );
 		if ( null === $composer_content_as_array ) {
-			FP_CLI::error( sprintf( "Failed to parse '%s' as json.", $raw_content_url ) );
+			FIN_CLI::error( sprintf( "Failed to parse '%s' as json.", $raw_content_url ) );
 		}
 		if ( empty( $composer_content_as_array['name'] ) ) {
-			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $raw_content_url ) );
+			FIN_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $raw_content_url ) );
 		}
 
 		// Package name in composer.json that is hosted on GitHub.
@@ -1155,7 +1155,7 @@ class Package_Command extends FP_CLI_Command {
 
 		// If package name and repository name are not identical, then fix it.
 		if ( $package_name !== $package_name_on_repo ) {
-			FP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
+			FIN_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
 			$package_name = $package_name_on_repo;
 		}
 
@@ -1203,7 +1203,7 @@ class Package_Command extends FP_CLI_Command {
 		$response     = Utils\http_request( 'GET', $raw_content_public_url, null /*data*/, [], $options );
 		if ( ! $gitlab_token && ( $response->status_code < 200 || $response->status_code >= 300 ) ) {
 			// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-			FP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_public_url, $response->status_code, $package_name ) );
+			FIN_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_public_url, $response->status_code, $package_name ) );
 			return $package_name;
 		}
 
@@ -1213,7 +1213,7 @@ class Package_Command extends FP_CLI_Command {
 
 			if ( $response->status_code < 200 || $response->status_code >= 300 ) {
 				// Could not get composer.json. Possibly private so warn and return best guess from input (always xxx/xxx).
-				FP_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_private_url, $response->status_code, $package_name ) );
+				FIN_CLI::warning( sprintf( "Couldn't download composer.json file from '%s' (HTTP code %d). Presuming package name is '%s'.", $raw_content_private_url, $response->status_code, $package_name ) );
 				return $package_name;
 			}
 		}
@@ -1221,10 +1221,10 @@ class Package_Command extends FP_CLI_Command {
 		// Convert composer.json JSON to Array.
 		$composer_content_as_array = json_decode( $response->body, true );
 		if ( null === $composer_content_as_array ) {
-			FP_CLI::error( sprintf( "Failed to parse '%s' as json.", $response->url ) );
+			FIN_CLI::error( sprintf( "Failed to parse '%s' as json.", $response->url ) );
 		}
 		if ( empty( $composer_content_as_array['name'] ) ) {
-			FP_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $response->url ) );
+			FIN_CLI::error( sprintf( "Invalid package: no name in composer.json file '%s'.", $response->url ) );
 		}
 
 		// Package name in composer.json that is hosted on Gitlab.
@@ -1232,7 +1232,7 @@ class Package_Command extends FP_CLI_Command {
 
 		// If package name and repository name are not identical, then fix it.
 		if ( $package_name !== $package_name_on_repo ) {
-			FP_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
+			FIN_CLI::warning( sprintf( "Package name mismatch...Updating from git name '%s' to composer.json name '%s'.", $package_name, $package_name_on_repo ) );
 			$package_name = $package_name_on_repo;
 		}
 		return $package_name;
@@ -1276,18 +1276,18 @@ class Package_Command extends FP_CLI_Command {
 		$options  = [ 'insecure' => $insecure ];
 		$response = Utils\http_request( 'GET', $url, null, [], $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
-			FP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
+			FIN_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
 			return 'master';
 		}
 
 		$package_data = json_decode( $response->body );
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
-			FP_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
+			FIN_CLI::warning( 'Could not guess stable version from GitHub repository, falling back to master branch' );
 			return 'master';
 		}
 
 		$tag = $package_data->tag_name;
-		FP_CLI::debug( "Extracted latest stable release tag: {$tag}", 'packages' );
+		FIN_CLI::debug( "Extracted latest stable release tag: {$tag}", 'packages' );
 
 		return $tag;
 	}
@@ -1306,7 +1306,7 @@ class Package_Command extends FP_CLI_Command {
 		}
 
 		$constraint = "^{$matches[1]}";
-		FP_CLI::debug( "Guessing version constraint to use: {$constraint}", 'packages' );
+		FIN_CLI::debug( "Guessing version constraint to use: {$constraint}", 'packages' );
 
 		return $constraint;
 	}
@@ -1346,9 +1346,9 @@ class Package_Command extends FP_CLI_Command {
 	}
 
 	/**
-	 * Reads the FP-CLI packages composer.json, checking validity and returning array containing its path, contents, and decoded contents.
+	 * Reads the FIN-CLI packages composer.json, checking validity and returning array containing its path, contents, and decoded contents.
 	 *
-	 * @return array Indexed array containing the path, the contents, and the decoded contents of the FP-CLI packages composer.json.
+	 * @return array Indexed array containing the path, the contents, and the decoded contents of the FIN-CLI packages composer.json.
 	 */
 	private function get_composer_json_path_backup_decoded() {
 		$composer_json_obj = $this->get_composer_json();
@@ -1356,12 +1356,12 @@ class Package_Command extends FP_CLI_Command {
 		$composer_backup   = file_get_contents( $json_path );
 		if ( false === $composer_backup ) {
 			$error = error_get_last();
-			FP_CLI::error( sprintf( "Failed to read '%s': %s", $json_path, $error['message'] ) );
+			FIN_CLI::error( sprintf( "Failed to read '%s': %s", $json_path, $error['message'] ) );
 		}
 		try {
 			$composer_backup_decoded = $composer_json_obj->read();
 		} catch ( Exception $e ) {
-			FP_CLI::error( sprintf( "Failed to parse '%s' as json: %s", $json_path, $e->getMessage() ) );
+			FIN_CLI::error( sprintf( "Failed to parse '%s' as json: %s", $json_path, $e->getMessage() ) );
 		}
 
 		return [ $json_path, $composer_backup, $composer_backup_decoded ];
@@ -1379,7 +1379,7 @@ class Package_Command extends FP_CLI_Command {
 		// Allocate all needed memory beforehand as much as possible.
 		$revert_msg      = "Reverted composer.json.\n";
 		$revert_fail_msg = "Failed to revert composer.json.\n";
-		$memory_msg      = "FP-CLI ran out of memory. Please see https://bit.ly/fpclimem for further help.\n";
+		$memory_msg      = "FIN-CLI ran out of memory. Please see https://bit.ly/finclimem for further help.\n";
 		$memory_string   = 'Allowed memory size of';
 		$error_array     = [
 			'type'    => 42,
@@ -1445,7 +1445,7 @@ class Package_Command extends FP_CLI_Command {
 		$github_api_repo_url = "https://api.github.com/repos/{$package_name}";
 		$response            = Utils\http_request( 'GET', $github_api_repo_url, null /*data*/, $headers, $options );
 		if ( 20 !== (int) substr( $response->status_code, 0, 2 ) ) {
-			FP_CLI::warning(
+			FIN_CLI::warning(
 				sprintf(
 					"Couldn't fetch default branch for package '%s' (HTTP code %d). Presuming default branch is 'master'.",
 					$package_name,
@@ -1458,14 +1458,14 @@ class Package_Command extends FP_CLI_Command {
 		$package_data = json_decode( $response->body );
 
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
-			FP_CLI::warning( "Couldn't fetch default branch for package '%s' (failed to decode JSON response). Presuming default branch is 'master'." );
+			FIN_CLI::warning( "Couldn't fetch default branch for package '%s' (failed to decode JSON response). Presuming default branch is 'master'." );
 			return 'master';
 		}
 
 		$default_branch = $package_data->default_branch;
 
 		if ( ! is_string( $default_branch ) || empty( $default_branch ) ) {
-			FP_CLI::warning(
+			FIN_CLI::warning(
 				sprintf(
 					"Couldn't fetch default branch for package '%s'. Presuming default branch is 'master'.",
 					$package_name
@@ -1474,7 +1474,7 @@ class Package_Command extends FP_CLI_Command {
 			return 'master';
 		}
 
-		FP_CLI::debug( "Detected package default branch: {$default_branch}", 'packages' );
+		FIN_CLI::debug( "Detected package default branch: {$default_branch}", 'packages' );
 
 		return $default_branch;
 	}

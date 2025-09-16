@@ -1,8 +1,8 @@
 {
-  "name": "fp-cli/package-command",
-  "type": "fp-cli-package",
-  "description": "Lists, installs, and removes FP-CLI packages.",
-  "homepage": "https://github.com/fp-cli/package-command",
+  "name": "fin-cli/package-command",
+  "type": "fin-cli-package",
+  "description": "Lists, installs, and removes FIN-CLI packages.",
+  "homepage": "https://github.com/fin-cli/package-command",
   "license": "MIT",
   "authors": [
     {
@@ -14,11 +14,11 @@
   "require": {
     "ext-json": "*",
     "composer/composer": "^2.2.25",
-    "fp-cli/fp-cli": "^2.12"
+    "fin-cli/fin-cli": "^2.12"
   },
   "require-dev": {
-    "fp-cli/scaffold-command": "^1 || ^2",
-    "fp-cli/fp-cli-tests": "^5"
+    "fin-cli/scaffold-command": "^1 || ^2",
+    "fin-cli/fin-cli-tests": "^5"
   },
   "config": {
     "process-timeout": 7200,
@@ -72,6 +72,6 @@
     ]
   },
   "support": {
-    "issues": "https://github.com/fp-cli/package-command/issues"
+    "issues": "https://github.com/fin-cli/package-command/issues"
   }
 }

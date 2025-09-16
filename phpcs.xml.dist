@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<ruleset name="FP-CLI-package">
-	<description>Custom ruleset for FP-CLI package-command</description>
+<ruleset name="FIN-CLI-package">
+	<description>Custom ruleset for FIN-CLI package-command</description>
 
 	<!--
 	#############################################################################
@@ -15,9 +15,9 @@
 
 	<!-- Ignoring select files/folders.
 		 https://github.com/squizlabs/PHP_CodeSniffer/wiki/Advanced-Usage#ignoring-files-and-folders -->
-	<exclude-pattern>*/src/FP_CLI/JsonManipulator\.php$</exclude-pattern>
-	<exclude-pattern>*/src/FP_CLI/Package/Compat/Min_Composer_1_10/NullIOMethodsTrait\.php$</exclude-pattern>
-	<exclude-pattern>*/src/FP_CLI/Package/Compat/Min_Composer_2_3/NullIOMethodsTrait\.php$</exclude-pattern>
+	<exclude-pattern>*/src/FIN_CLI/JsonManipulator\.php$</exclude-pattern>
+	<exclude-pattern>*/src/FIN_CLI/Package/Compat/Min_Composer_1_10/NullIOMethodsTrait\.php$</exclude-pattern>
+	<exclude-pattern>*/src/FIN_CLI/Package/Compat/Min_Composer_2_3/NullIOMethodsTrait\.php$</exclude-pattern>
 	<exclude-pattern>*/tests/JsonManipulatorTest\.php$</exclude-pattern>
 
 	<!-- Show progress. -->
@@ -31,11 +31,11 @@
 
 	<!--
 	#############################################################################
-	USE THE FP_CLI_CS RULESET
+	USE THE FIN_CLI_CS RULESET
 	#############################################################################
 	-->
 
-	<rule ref="FP_CLI_CS"/>
+	<rule ref="FIN_CLI_CS"/>
 
 	<!--
 	#############################################################################
@@ -52,8 +52,8 @@
 	<rule ref="FinPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="FP_CLI\Package"/><!-- Namespaces. -->
-				<element value="fpcli_package"/><!-- Global variables and such. -->
+				<element value="FIN_CLI\Package"/><!-- Namespaces. -->
+				<element value="fincli_package"/><!-- Global variables and such. -->
 			</property>
 		</properties>
 	</rule>

@@ -1,11 +1,11 @@
 <?php
 
-if ( ! class_exists( 'FP_CLI' ) ) {
+if ( ! class_exists( 'FIN_CLI' ) ) {
 	return;
 }
 
-$fpcli_package_autoloader = __DIR__ . '/vendor/autoload.php';
-if ( file_exists( $fpcli_package_autoloader ) && ! class_exists( 'Package_Command' ) ) {
-	require_once $fpcli_package_autoloader;
+$fincli_package_autoloader = __DIR__ . '/vendor/autoload.php';
+if ( file_exists( $fincli_package_autoloader ) && ! class_exists( 'Package_Command' ) ) {
+	require_once $fincli_package_autoloader;
 }
-FP_CLI::add_command( 'package', 'Package_Command' );
+FIN_CLI::add_command( 'package', 'Package_Command' );

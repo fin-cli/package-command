@@ -1,7 +1,7 @@
 <?php
 
 /*
- * FP_CLI: Copied and adapted from vendor/composer/composer/tests/Composer/Test/Json/JsonManipulatorTest.php. Additions at end marked FP_CLI: begin/end.
+ * FIN_CLI: Copied and adapted from vendor/composer/composer/tests/Composer/Test/Json/JsonManipulatorTest.php. Additions at end marked FIN_CLI: begin/end.
  *
  * (c) Nils Adermann <naderman@naderman.de>
  *     Jordi Boggiano <j.boggiano@seld.be>
@@ -10,8 +10,8 @@
  * file that was distributed with this source code.
  */
 
-use FP_CLI\JsonManipulator; // FP_CLI
-use FP_CLI\Tests\TestCase;
+use FIN_CLI\JsonManipulator; // FIN_CLI
+use FIN_CLI\Tests\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class JsonManipulatorTest extends TestCase
@@ -2358,7 +2358,7 @@ class JsonManipulatorTest extends TestCase
 
     }
 
-	// FP_CLI: begin caseInsensitive.
+	// FIN_CLI: begin caseInsensitive.
 
     /**
      * @dataProvider providerAddLinkCaseInsensitive
@@ -2574,6 +2574,6 @@ class JsonManipulatorTest extends TestCase
             ),
 		);
 	}
-	// FP_CLI: end caseInsensitive.
+	// FIN_CLI: end caseInsensitive.
 
 }
